@@ -1,0 +1,24 @@
+version: '3.8'
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    env_file:
+      - docker.env
+  postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_DB: sckr
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test1234
+    ports:
+      - "5542:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
