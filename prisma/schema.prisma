@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/prisma"
+  provider = "prisma-client-ts"
+  output   = "../src/prisma/generated"
 }
 
 datasource db {
@@ -11,4 +11,10 @@ datasource db {
 model Class {
   id   Int    @id @default(autoincrement())
   name String
+}
+
+model Week {
+  id   Int    @id @default(autoincrement())
+  value String @unique
+  label String
 }

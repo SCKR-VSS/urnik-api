@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { AccessGuard } from './auth/access.guard';
+import { AccessGuard } from './auth/auth.guard';
 import { ConfigService } from '@nestjs/config';
 //import { ApiKeyService } from './auth/api-key.service';
 

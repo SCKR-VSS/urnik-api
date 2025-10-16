@@ -3,9 +3,13 @@ import {
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from '@nestjs/cache-manager';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { CACHE_MANAGER, Cache} from '@nestjs/cache-manager';
+
+export interface OptionsResponse {
+  classes: any[];
+  weeks: { value: string; label: string }[];
+}
 
 @Injectable()
 export class OptionsService {
@@ -14,9 +18,9 @@ export class OptionsService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  async getOptions() {
+  async getOptions(): Promise<OptionsResponse> {
     const cacheKey = 'options';
-    const cachedOptions = await this.cacheManager.get(cacheKey);
+    const cachedOptions: OptionsResponse | undefined = await this.cacheManager.get(cacheKey);
 
     if (cachedOptions) {
       return cachedOptions;
