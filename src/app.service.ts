@@ -71,14 +71,6 @@ export class AppService implements OnApplicationBootstrap {
 
     this.logger.log('Checking for timetable updates...');
 
-    const currentDate = new Date();
-    const startOfYear = new Date(currentDate.getFullYear(), 0, 1);
-    const pastDaysOfYear =
-      (currentDate.valueOf() - startOfYear.valueOf()) / 86400000;
-    const currentWeekNumber = Math.ceil(
-      (pastDaysOfYear + startOfYear.getDay() + 1) / 7,
-    );
-
     const weeks = await this.prisma.week.findMany();
 
     const classes = await this.prisma.class.findMany();

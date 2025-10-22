@@ -66,11 +66,15 @@ export class TimetableParser {
     const dom = new JSDOM(html);
     const { document } = dom.window;
 
-    const weekSelect = document.querySelector<HTMLSelectElement>('select[name="week"]',);
+    const weekSelect = document.querySelector<HTMLSelectElement>(
+      'select[name="week"]',
+    );
     const weeks: { id: number; label: string }[] = [];
 
     if (weekSelect) {
-      const options = Array.from(weekSelect.querySelectorAll('option')) as HTMLOptionElement[];
+      const options = Array.from(
+        weekSelect.querySelectorAll('option'),
+      ) as HTMLOptionElement[];
       for (const option of options) {
         const id = parseInt(option.value, 10);
         const label = option.textContent?.trim() || '';
@@ -122,7 +126,7 @@ export class TimetableParser {
         if (!prevRow) continue;
         for (let col = 1; col < MAX_COLS; col++) {
           const ref = prevRow[col];
-          if (ref?.colspan === span) {
+          if (ref?.colspan === span && ref.columnPosition === col) {
             candidates.push(ref.columnPosition);
           }
         }
@@ -132,10 +136,23 @@ export class TimetableParser {
       const uniqueSorted = Array.from(new Set(candidates)).sort(
         (a, b) => a - b,
       );
-      const target = uniqueSorted.find((pos) => pos >= desiredPosition);
+      
+      const currentRow = grid[rowIndex] || [];
+      const availableCandidates = uniqueSorted.filter((pos) => {
+        for (let c = 0; c < span; c++) {
+          if (currentRow[pos + c] !== undefined) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      if (!availableCandidates.length) return null;
+
+      const target = availableCandidates.find((pos) => pos >= desiredPosition);
       return target !== undefined
         ? target
-        : uniqueSorted[uniqueSorted.length - 1];
+        : availableCandidates[availableCandidates.length - 1];
     };
 
     let currentDay: string | null = null;
@@ -199,16 +216,18 @@ export class TimetableParser {
         const isClassCell =
           cell.getAttribute('bgcolor') && cell.querySelector('table');
 
-        if (isClassCell && currentDay && cellStartColumn === 0) {
+        if (isClassCell && currentDay && columnPosition === 0) {
           const fallbackColumn = resolveStartColumn(
             currentDay,
             colspan,
-            columnPosition,
+            1,
             currentDayStartRow,
             rowIdx,
           );
           if (typeof fallbackColumn === 'number' && fallbackColumn >= 0) {
             cellStartColumn = fallbackColumn;
+          } else {
+            cellStartColumn = columnPosition;
           }
         }
 
@@ -380,6 +399,9 @@ export class TimetableParser {
         } else if (text && !text.includes('Skupina')) {
           if (!classInfo.specialNote) {
             classInfo.specialNote = className.startsWith('EKN') ? '' : text;
+            if (className.startsWith('EKN')) {
+              classInfo.classroom = text;
+            }
           } else {
             classInfo.specialNote += `, ${text}`;
           }

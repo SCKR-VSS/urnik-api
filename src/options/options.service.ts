@@ -7,7 +7,7 @@ import { CACHE_MANAGER, Cache} from '@nestjs/cache-manager';
 
 export interface OptionsResponse {
   classes: any[];
-  weeks: { value: number; label: string }[];
+  weeks: { value: number; label: string; isCurrent: boolean }[];
 }
 
 @Injectable()
@@ -27,12 +27,22 @@ export class OptionsService {
 
     const classes = await this.prisma.class.findMany();
 
-    const weeks: { value: number; label: string }[] = [];
+    const weeks: { value: number; label: string; isCurrent: boolean }[] = [];
 
     const weeksInDb = await this.prisma.week.findMany();
 
     for (const week of weeksInDb) {
-      weeks.push({ value: week.id, label: week.label });
+      const currentDate = new Date();
+      const parts = week.label.split('.').map((part) => parseInt(part, 10));
+      const weekStartDate = new Date(parts[2], parts[1] - 1, parts[0]);
+
+      const weekEndDate = new Date(weekStartDate);
+      weekEndDate.setDate(weekEndDate.getDate() + 7);
+
+      const isCurrent =
+        currentDate >= weekStartDate && currentDate < weekEndDate;
+
+      weeks.push({ value: week.id, label: week.label, isCurrent });
     }
 
     const options = {
