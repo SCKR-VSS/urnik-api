@@ -11,10 +11,28 @@ datasource db {
 model Class {
   id   Int    @id @default(autoincrement())
   name String
+
+  timetables Timetable[]
 }
 
 model Week {
-  id   Int    @id @default(autoincrement())
-  value String @unique
+  id    Int    @id
   label String
+
+  timetables Timetable[]
+}
+
+model Timetable {
+  id      Int    @id @default(autoincrement())
+  class   Class  @relation(fields: [classId], references: [id])
+  classId Int
+  week    Week   @relation(fields: [weekId], references: [id])
+  weekId  Int
+  data    Json
+  hash    String
+}
+
+model Professor {
+  id   Int    @id @default(autoincrement())
+  name String
 }

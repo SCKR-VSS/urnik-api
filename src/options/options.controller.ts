@@ -9,4 +9,9 @@ export class OptionsController {
     getOptions() {
         return this.optionsService.getOptions();
     }
+
+    @Get('/professors')
+    getProfessors() {
+        return this.optionsService.getProfessors();
+    }
 }

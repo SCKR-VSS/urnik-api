@@ -26,3 +26,13 @@ export type Class = Prisma.ClassModel
  * 
  */
 export type Week = Prisma.WeekModel
+/**
+ * Model Timetable
+ * 
+ */
+export type Timetable = Prisma.TimetableModel
+/**
+ * Model Professor
+ * 
+ */
+export type Professor = Prisma.ProfessorModel

@@ -9,4 +9,6 @@
  */
 export type * from './models/Class'
 export type * from './models/Week'
+export type * from './models/Timetable'
+export type * from './models/Professor'
 export type * from './commonInputTypes'

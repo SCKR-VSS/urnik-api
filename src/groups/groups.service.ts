@@ -3,7 +3,7 @@ import { OptionsService } from 'src/options/options.service';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 
 interface Week {
-  value: string;
+  value: number;
   label: string;
 }
 

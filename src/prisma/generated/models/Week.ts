@@ -35,19 +35,16 @@ export type WeekSumAggregateOutputType = {
 
 export type WeekMinAggregateOutputType = {
   id: number | null
-  value: string | null
   label: string | null
 }
 
 export type WeekMaxAggregateOutputType = {
   id: number | null
-  value: string | null
   label: string | null
 }
 
 export type WeekCountAggregateOutputType = {
   id: number
-  value: number
   label: number
   _all: number
 }
@@ -63,19 +60,16 @@ export type WeekSumAggregateInputType = {
 
 export type WeekMinAggregateInputType = {
   id?: true
-  value?: true
   label?: true
 }
 
 export type WeekMaxAggregateInputType = {
   id?: true
-  value?: true
   label?: true
 }
 
 export type WeekCountAggregateInputType = {
   id?: true
-  value?: true
   label?: true
   _all?: true
 }
@@ -168,7 +162,6 @@ export type WeekGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
 
 export type WeekGroupByOutputType = {
   id: number
-  value: string
   label: string
   _count: WeekCountAggregateOutputType | null
   _avg: WeekAvgAggregateOutputType | null
@@ -197,28 +190,27 @@ export type WeekWhereInput = {
   OR?: Prisma.WeekWhereInput[]
   NOT?: Prisma.WeekWhereInput | Prisma.WeekWhereInput[]
   id?: Prisma.IntFilter<"Week"> | number
-  value?: Prisma.StringFilter<"Week"> | string
   label?: Prisma.StringFilter<"Week"> | string
+  timetables?: Prisma.TimetableListRelationFilter
 }
 
 export type WeekOrderByWithRelationInput = {
   id?: Prisma.SortOrder
-  value?: Prisma.SortOrder
   label?: Prisma.SortOrder
+  timetables?: Prisma.TimetableOrderByRelationAggregateInput
 }
 
 export type WeekWhereUniqueInput = Prisma.AtLeast<{
   id?: number
-  value?: string
   AND?: Prisma.WeekWhereInput | Prisma.WeekWhereInput[]
   OR?: Prisma.WeekWhereInput[]
   NOT?: Prisma.WeekWhereInput | Prisma.WeekWhereInput[]
   label?: Prisma.StringFilter<"Week"> | string
-}, "id" | "value">
+  timetables?: Prisma.TimetableListRelationFilter
+}, "id">
 
 export type WeekOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
-  value?: Prisma.SortOrder
   label?: Prisma.SortOrder
   _count?: Prisma.WeekCountOrderByAggregateInput
   _avg?: Prisma.WeekAvgOrderByAggregateInput
@@ -232,52 +224,50 @@ export type WeekScalarWhereWithAggregatesInput = {
   OR?: Prisma.WeekScalarWhereWithAggregatesInput[]
   NOT?: Prisma.WeekScalarWhereWithAggregatesInput | Prisma.WeekScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"Week"> | number
-  value?: Prisma.StringWithAggregatesFilter<"Week"> | string
   label?: Prisma.StringWithAggregatesFilter<"Week"> | string
 }
 
 export type WeekCreateInput = {
-  value: string
+  id: number
   label: string
+  timetables?: Prisma.TimetableCreateNestedManyWithoutWeekInput
 }
 
 export type WeekUncheckedCreateInput = {
-  id?: number
-  value: string
+  id: number
   label: string
+  timetables?: Prisma.TimetableUncheckedCreateNestedManyWithoutWeekInput
 }
 
 export type WeekUpdateInput = {
-  value?: Prisma.StringFieldUpdateOperationsInput | string
+  id?: Prisma.IntFieldUpdateOperationsInput | number
   label?: Prisma.StringFieldUpdateOperationsInput | string
+  timetables?: Prisma.TimetableUpdateManyWithoutWeekNestedInput
 }
 
 export type WeekUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  value?: Prisma.StringFieldUpdateOperationsInput | string
   label?: Prisma.StringFieldUpdateOperationsInput | string
+  timetables?: Prisma.TimetableUncheckedUpdateManyWithoutWeekNestedInput
 }
 
 export type WeekCreateManyInput = {
-  id?: number
-  value: string
+  id: number
   label: string
 }
 
 export type WeekUpdateManyMutationInput = {
-  value?: Prisma.StringFieldUpdateOperationsInput | string
+  id?: Prisma.IntFieldUpdateOperationsInput | number
   label?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type WeekUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  value?: Prisma.StringFieldUpdateOperationsInput | string
   label?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type WeekCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  value?: Prisma.SortOrder
   label?: Prisma.SortOrder
 }
 
@@ -287,13 +277,11 @@ export type WeekAvgOrderByAggregateInput = {
 
 export type WeekMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  value?: Prisma.SortOrder
   label?: Prisma.SortOrder
 }
 
 export type WeekMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  value?: Prisma.SortOrder
   label?: Prisma.SortOrder
 }
 
@@ -301,40 +289,129 @@ export type WeekSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
 }
 
+export type WeekScalarRelationFilter = {
+  is?: Prisma.WeekWhereInput
+  isNot?: Prisma.WeekWhereInput
+}
+
+export type WeekCreateNestedOneWithoutTimetablesInput = {
+  create?: Prisma.XOR<Prisma.WeekCreateWithoutTimetablesInput, Prisma.WeekUncheckedCreateWithoutTimetablesInput>
+  connectOrCreate?: Prisma.WeekCreateOrConnectWithoutTimetablesInput
+  connect?: Prisma.WeekWhereUniqueInput
+}
+
+export type WeekUpdateOneRequiredWithoutTimetablesNestedInput = {
+  create?: Prisma.XOR<Prisma.WeekCreateWithoutTimetablesInput, Prisma.WeekUncheckedCreateWithoutTimetablesInput>
+  connectOrCreate?: Prisma.WeekCreateOrConnectWithoutTimetablesInput
+  upsert?: Prisma.WeekUpsertWithoutTimetablesInput
+  connect?: Prisma.WeekWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.WeekUpdateToOneWithWhereWithoutTimetablesInput, Prisma.WeekUpdateWithoutTimetablesInput>, Prisma.WeekUncheckedUpdateWithoutTimetablesInput>
+}
+
+export type WeekCreateWithoutTimetablesInput = {
+  id: number
+  label: string
+}
+
+export type WeekUncheckedCreateWithoutTimetablesInput = {
+  id: number
+  label: string
+}
+
+export type WeekCreateOrConnectWithoutTimetablesInput = {
+  where: Prisma.WeekWhereUniqueInput
+  create: Prisma.XOR<Prisma.WeekCreateWithoutTimetablesInput, Prisma.WeekUncheckedCreateWithoutTimetablesInput>
+}
+
+export type WeekUpsertWithoutTimetablesInput = {
+  update: Prisma.XOR<Prisma.WeekUpdateWithoutTimetablesInput, Prisma.WeekUncheckedUpdateWithoutTimetablesInput>
+  create: Prisma.XOR<Prisma.WeekCreateWithoutTimetablesInput, Prisma.WeekUncheckedCreateWithoutTimetablesInput>
+  where?: Prisma.WeekWhereInput
+}
+
+export type WeekUpdateToOneWithWhereWithoutTimetablesInput = {
+  where?: Prisma.WeekWhereInput
+  data: Prisma.XOR<Prisma.WeekUpdateWithoutTimetablesInput, Prisma.WeekUncheckedUpdateWithoutTimetablesInput>
+}
+
+export type WeekUpdateWithoutTimetablesInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  label?: Prisma.StringFieldUpdateOperationsInput | string
+}
+
+export type WeekUncheckedUpdateWithoutTimetablesInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  label?: Prisma.StringFieldUpdateOperationsInput | string
+}
+
+
+/**
+ * Count Type WeekCountOutputType
+ */
+
+export type WeekCountOutputType = {
+  timetables: number
+}
+
+export type WeekCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  timetables?: boolean | WeekCountOutputTypeCountTimetablesArgs
+}
+
+/**
+ * WeekCountOutputType without action
+ */
+export type WeekCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WeekCountOutputType
+   */
+  select?: Prisma.WeekCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * WeekCountOutputType without action
+ */
+export type WeekCountOutputTypeCountTimetablesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.TimetableWhereInput
+}
 
 
 export type WeekSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  value?: boolean
   label?: boolean
+  timetables?: boolean | Prisma.Week$timetablesArgs<ExtArgs>
+  _count?: boolean | Prisma.WeekCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["week"]>
 
 export type WeekSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  value?: boolean
   label?: boolean
 }, ExtArgs["result"]["week"]>
 
 export type WeekSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  value?: boolean
   label?: boolean
 }, ExtArgs["result"]["week"]>
 
 export type WeekSelectScalar = {
   id?: boolean
-  value?: boolean
   label?: boolean
 }
 
-export type WeekOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "value" | "label", ExtArgs["result"]["week"]>
+export type WeekOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "label", ExtArgs["result"]["week"]>
+export type WeekInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  timetables?: boolean | Prisma.Week$timetablesArgs<ExtArgs>
+  _count?: boolean | Prisma.WeekCountOutputTypeDefaultArgs<ExtArgs>
+}
+export type WeekIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
+export type WeekIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
 
 export type $WeekPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Week"
-  objects: {}
+  objects: {
+    timetables: Prisma.$TimetablePayload<ExtArgs>[]
+  }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
-    value: string
     label: string
   }, ExtArgs["result"]["week"]>
   composites: {}
@@ -730,6 +807,7 @@ readonly fields: WeekFieldRefs;
  */
 export interface Prisma__WeekClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  timetables<T extends Prisma.Week$timetablesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Week$timetablesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TimetablePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -760,7 +838,6 @@ export interface Prisma__WeekClient<T, Null = never, ExtArgs extends runtime.Typ
  */
 export interface WeekFieldRefs {
   readonly id: Prisma.FieldRef<"Week", 'Int'>
-  readonly value: Prisma.FieldRef<"Week", 'String'>
   readonly label: Prisma.FieldRef<"Week", 'String'>
 }
     
@@ -778,6 +855,10 @@ export type WeekFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.Internal
    * Omit specific fields from the Week
    */
   omit?: Prisma.WeekOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WeekInclude<ExtArgs> | null
   /**
    * Filter, which Week to fetch.
    */
@@ -797,6 +878,10 @@ export type WeekFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.I
    */
   omit?: Prisma.WeekOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WeekInclude<ExtArgs> | null
+  /**
    * Filter, which Week to fetch.
    */
   where: Prisma.WeekWhereUniqueInput
@@ -814,6 +899,10 @@ export type WeekFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    * Omit specific fields from the Week
    */
   omit?: Prisma.WeekOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WeekInclude<ExtArgs> | null
   /**
    * Filter, which Week to fetch.
    */
@@ -863,6 +952,10 @@ export type WeekFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.In
    */
   omit?: Prisma.WeekOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WeekInclude<ExtArgs> | null
+  /**
    * Filter, which Week to fetch.
    */
   where?: Prisma.WeekWhereInput
@@ -911,6 +1004,10 @@ export type WeekFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalAr
    */
   omit?: Prisma.WeekOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WeekInclude<ExtArgs> | null
+  /**
    * Filter, which Weeks to fetch.
    */
   where?: Prisma.WeekWhereInput
@@ -953,6 +1050,10 @@ export type WeekCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs
    * Omit specific fields from the Week
    */
   omit?: Prisma.WeekOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WeekInclude<ExtArgs> | null
   /**
    * The data needed to create a Week.
    */
@@ -1001,6 +1102,10 @@ export type WeekUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs
    * Omit specific fields from the Week
    */
   omit?: Prisma.WeekOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WeekInclude<ExtArgs> | null
   /**
    * The data needed to update a Week.
    */
@@ -1068,6 +1173,10 @@ export type WeekUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs
    */
   omit?: Prisma.WeekOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WeekInclude<ExtArgs> | null
+  /**
    * The filter to search for the Week to update in case it exists.
    */
   where: Prisma.WeekWhereUniqueInput
@@ -1094,6 +1203,10 @@ export type WeekDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs
    */
   omit?: Prisma.WeekOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WeekInclude<ExtArgs> | null
+  /**
    * Filter which Week to delete.
    */
   where: Prisma.WeekWhereUniqueInput
@@ -1114,6 +1227,30 @@ export type WeekDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Internal
 }
 
 /**
+ * Week.timetables
+ */
+export type Week$timetablesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Timetable
+   */
+  select?: Prisma.TimetableSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Timetable
+   */
+  omit?: Prisma.TimetableOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TimetableInclude<ExtArgs> | null
+  where?: Prisma.TimetableWhereInput
+  orderBy?: Prisma.TimetableOrderByWithRelationInput | Prisma.TimetableOrderByWithRelationInput[]
+  cursor?: Prisma.TimetableWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.TimetableScalarFieldEnum | Prisma.TimetableScalarFieldEnum[]
+}
+
+/**
  * Week without action
  */
 export type WeekDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1125,4 +1262,8 @@ export type WeekDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
    * Omit specific fields from the Week
    */
   omit?: Prisma.WeekOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WeekInclude<ExtArgs> | null
 }

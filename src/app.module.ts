@@ -7,6 +7,8 @@ import { OptionsModule } from './options/options.module';
 import { TimetableModule } from './timetable/timetable.module';
 import { ConfigModule } from '@nestjs/config';
 import { GroupsModule } from './groups/groups.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { GroupsModule } from './groups/groups.module';
       isGlobal: true,
     }),
     GroupsModule,
+    ScheduleModule.forRoot(),
+    PrismaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
