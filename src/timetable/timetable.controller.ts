@@ -20,10 +20,10 @@ export class TimetableController {
   postTimetable(
     @Param('week') week: string,
     @Param('classId') classId: string,
-    @Body() skupine: SkupineDto[],
+    @Body() options: { groups: SkupineDto[], subjects?: string[] },
   ) {
     const weekNum = parseInt(week);
-    return this.timetableService.getTimetable(weekNum, classId, skupine);
+    return this.timetableService.getTimetable(weekNum, classId, options);
   }
 
   @Get('professor/:week/:professorId')

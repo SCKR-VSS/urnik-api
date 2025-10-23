@@ -18,11 +18,11 @@ export class TimetableService {
   async getTimetable(
     week: number,
     classId: string,
-    skupine?: { [key: string]: number }[],
+    options?: { groups: { [key: string]: number }[]; subjects?: string[] },
   ) {
     let bodyHash = '';
-    if (skupine) {
-      const bodyString = JSON.stringify(skupine);
+    if (options) {
+      const bodyString = JSON.stringify(options);
       bodyHash = crypto.createHash('md5').update(bodyString).digest('hex');
     }
 
@@ -55,21 +55,35 @@ export class TimetableService {
     if (timeTable) {
       const timetableData = JSON.parse(timeTable.data as string);
 
-      if (!skupine || skupine.length === 0) {
+      if (!options || (!options.groups && !options.subjects)) {
         await this.cacheManager.set(key, timetableData);
         return timetableData;
       }
 
+      const userGroups = options.groups;
+      const userSubjects = options.subjects;
+
       const filteredDays = timetableData.days.map((day: any) => {
         const filteredClasses = day.classes.filter((cls: any) => {
-          if (cls.group === null) {
-            return true;
+          const subjectMatch =
+            !userSubjects ||
+            userSubjects.length === 0 ||
+            userSubjects.some((userSub) => cls.subject.startsWith(userSub));
+
+          let groupMatch = true;
+          if (userGroups) {
+            if (cls.group === null) {
+              groupMatch = true;
+            }
+            else if (userGroups[cls.subject] === undefined) {
+              groupMatch = true;
+            }
+            else {
+              groupMatch = userGroups[cls.subject] === cls.group;
+            }
           }
 
-          return skupine.some(
-            (userGroupSelection) =>
-              userGroupSelection[cls.subject] === cls.group,
-          );
+          return subjectMatch && groupMatch;
         });
 
         return { ...day, classes: filteredClasses };
@@ -91,13 +105,7 @@ export class TimetableService {
 
     const profNum = parseInt(professorId);
 
-    if (
-      isNaN(week) ||
-      isNaN(profNum) ||
-      week < 1 ||
-      week > 53 ||
-      profNum < 1
-    ) {
+    if (isNaN(week) || isNaN(profNum) || week < 1 || week > 53 || profNum < 1) {
       return { error: 'Invalid week or professorId parameter' };
     }
 
@@ -319,14 +327,24 @@ export class TimetableService {
 
             doc.setFont('Roboto', 'normal');
             doc.setFontSize(12);
-            doc.text(cellData.className, cellCenterX, cellTopY + (cellData.group ? 10 : 5), {
-              align: 'center',
-            });
+            doc.text(
+              cellData.className,
+              cellCenterX,
+              cellTopY + (cellData.group ? 10 : 5),
+              {
+                align: 'center',
+              },
+            );
 
-            doc.text(`Uč: ${cellData.classroom ? cellData.classroom : cellData.specialNote}`, cellCenterX, cellBottomY, {
-              align: 'center',
-              baseline: 'bottom',
-            });
+            doc.text(
+              `Uč: ${cellData.classroom ? cellData.classroom : cellData.specialNote}`,
+              cellCenterX,
+              cellBottomY,
+              {
+                align: 'center',
+                baseline: 'bottom',
+              },
+            );
           }
         }
       },

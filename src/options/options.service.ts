@@ -1,9 +1,6 @@
-import {
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CACHE_MANAGER, Cache} from '@nestjs/cache-manager';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 
 export interface OptionsResponse {
   classes: any[];
@@ -19,7 +16,8 @@ export class OptionsService {
 
   async getOptions(): Promise<OptionsResponse> {
     const cacheKey = 'options';
-    const cachedOptions: OptionsResponse | undefined = await this.cacheManager.get(cacheKey);
+    const cachedOptions: OptionsResponse | undefined =
+      await this.cacheManager.get(cacheKey);
 
     if (cachedOptions) {
       return cachedOptions;
@@ -55,9 +53,10 @@ export class OptionsService {
     return options;
   }
 
-  async getProfessors(): Promise<{ id: number, name: string }[]> {
+  async getProfessors(): Promise<{ id: number; name: string }[]> {
     const cacheKey = 'professors';
-    const cachedOptions: { id: number, name: string }[] | undefined = await this.cacheManager.get(cacheKey);
+    const cachedOptions: { id: number; name: string }[] | undefined =
+      await this.cacheManager.get(cacheKey);
 
     if (cachedOptions) {
       return cachedOptions;
@@ -68,5 +67,46 @@ export class OptionsService {
     await this.cacheManager.set(cacheKey, professors);
 
     return professors;
+  }
+
+  async getSubjects(classId: string): Promise<{ id: number; name: string }[]> {
+    const cacheKey = `subjects_${classId}`;
+    const cachedOptions: { id: number; name: string }[] | undefined =
+      await this.cacheManager.get(cacheKey);
+
+    if (cachedOptions) {
+      return cachedOptions;
+    }
+
+    const classNum = parseInt(classId);
+    if (isNaN(classNum) || classNum < 1) {
+      return [];
+    }
+
+    const subjects = await this.prisma.timetable.findMany({
+      where: {
+        classId: classNum,
+      },
+    });
+
+    const subjectSet = new Set<string>();
+
+    subjects.forEach((entry) => {
+      const data = JSON.parse(entry.data as string);
+      data.days.forEach((day: any) => {
+        day.classes.forEach((cls: any) => {
+          subjectSet.add(cls.subject.split(" ")[0]);
+        });
+      });
+    });
+
+    const subjectList = Array.from(subjectSet).map((subject, index) => ({
+      id: index + 1,
+      name: subject,
+    }));
+
+    await this.cacheManager.set(cacheKey, subjectList);
+
+    return subjectList;
   }
 }

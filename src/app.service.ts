@@ -69,6 +69,31 @@ export class AppService implements OnApplicationBootstrap {
       }
     }
 
+    const fetchedClasses = this.parser.getClasses(htm);
+
+    const classesInDb = await this.prisma.class.findMany();
+
+    for (const classItem of fetchedClasses) {
+      const classExists = classesInDb.find((c) => c.id === classItem.id);
+      if (!classExists) {
+        await this.prisma.class.create({
+          data: {
+            id: classItem.id,
+            name: classItem.name,
+          },
+        });
+      } else if (classExists.name !== classItem.name) {
+        await this.prisma.class.update({
+          where: {
+            id: classItem.id,
+          },
+          data: {
+            name: classItem.name,
+          },
+        });
+      }
+    }
+
     this.logger.log('Checking for timetable updates...');
 
     const weeks = await this.prisma.week.findMany();

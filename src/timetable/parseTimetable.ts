@@ -30,6 +30,14 @@ type CommonClassData = Pick<
   'slot' | 'duration' | 'color' | 'dayName'
 >;
 
+interface GridCellRef {
+  cell: Element;
+  rowIdx: number;
+  columnPosition: number;
+  colspan: number;
+  rowspan: number;
+}
+
 export class TimetableParser {
   public getTeachers(html: string): string[] {
     const dom = new JSDOM(html);
@@ -60,6 +68,39 @@ export class TimetableParser {
     }
 
     return teachers;
+  }
+
+  public getClasses(html: string): { id: number; name: string }[] {
+    const dom = new JSDOM(html);
+    const { document } = dom.window;
+
+    const scripts = Array.from(document.querySelectorAll('script')) as any[];
+    const classes: { id: number; name: string }[] = [];
+
+    const classRegex = /var classes = (\[.*?\]);/s;
+
+    for (const script of scripts) {
+      const scriptContent = script.textContent;
+      if (scriptContent) {
+        const match = scriptContent.match(classRegex);
+        
+        if (match && match[1]) {
+          try {
+            const classArray = JSON.parse(match[1]);
+            if (Array.isArray(classArray)) {
+              classArray.forEach((className: string, index: number) => {
+                classes.push({ id: index + 1, name: className });
+              });
+              break;
+            }
+          } catch (e) {
+            console.error('Failed to parse classes array:', e);
+          }
+        }
+      }
+    }
+
+    return classes;
   }
 
   public getWeeks(html: string): { id: number; label: string }[] {
@@ -101,8 +142,10 @@ export class TimetableParser {
     if (!table) return result;
 
     const rows = Array.from(table.querySelectorAll('tr'));
-    const grid: any[][] = [];
+
+    const grid: (GridCellRef | undefined)[][] = [];
     const MAX_COLS = 34;
+
     const dayClassCellsByColspan = new Map<string, Map<number, number[]>>();
 
     const resolveStartColumn = (
@@ -113,6 +156,7 @@ export class TimetableParser {
       rowIndex: number,
     ): number | null => {
       const candidates: number[] = [];
+
       const dayColspanMap = dayClassCellsByColspan.get(dayName);
       if (dayColspanMap) {
         const stored = dayColspanMap.get(span);
@@ -126,17 +170,18 @@ export class TimetableParser {
         if (!prevRow) continue;
         for (let col = 1; col < MAX_COLS; col++) {
           const ref = prevRow[col];
-          if (ref?.colspan === span && ref.columnPosition === col) {
+          if (ref && ref.colspan === span) {
             candidates.push(ref.columnPosition);
           }
         }
       }
 
       if (!candidates.length) return null;
+
       const uniqueSorted = Array.from(new Set(candidates)).sort(
         (a, b) => a - b,
       );
-      
+
       const currentRow = grid[rowIndex] || [];
       const availableCandidates = uniqueSorted.filter((pos) => {
         for (let c = 0; c < span; c++) {
@@ -174,14 +219,10 @@ export class TimetableParser {
 
         const noteCell = cells.find((c) => {
           const font = c.querySelector('font[size="3"]');
-          return (
-            font &&
-            (font.textContent?.includes('Pred začet') ||
-              font.textContent?.includes('šol.leta'))
-          );
+          return font?.textContent?.match(/Pred začet|šol\.leta/);
         });
 
-        if (!dayData.has(dayName)) {
+        if (!dayData.has(dayName) && dayName) {
           if (noteCell) {
             const font = noteCell.querySelector('font[size="3"]');
             dayData.set(dayName, {
@@ -189,6 +230,7 @@ export class TimetableParser {
               classes: [],
               note: font?.textContent?.trim() ?? null,
             });
+            currentDay = null;
           } else {
             currentDay = dayName;
             currentDayStartRow = rowIdx;
@@ -198,10 +240,13 @@ export class TimetableParser {
         }
       }
 
-      let columnPosition = 0;
+      if (!currentDay) return;
 
+      let columnPosition = 0;
       for (const cell of cells) {
-        if (!grid[rowIdx]) grid[rowIdx] = [];
+        if (!grid[rowIdx]) {
+          grid[rowIdx] = [];
+        }
 
         while (
           grid[rowIdx][columnPosition] !== undefined &&
@@ -210,24 +255,24 @@ export class TimetableParser {
           columnPosition++;
         }
 
-        const colspan = parseInt(cell.getAttribute('colspan') || '1', 10);
-        const rowspan = parseInt(cell.getAttribute('rowspan') || '1', 10);
+        const colspan = parseInt(cell.getAttribute('colspan') || '1');
+        const rowspan = parseInt(cell.getAttribute('rowspan') || '1');
+
         let cellStartColumn = columnPosition;
+
         const isClassCell =
           cell.getAttribute('bgcolor') && cell.querySelector('table');
 
-        if (isClassCell && currentDay && columnPosition === 0) {
+        if (isClassCell && currentDay && cellStartColumn === 0) {
           const fallbackColumn = resolveStartColumn(
             currentDay,
             colspan,
-            1,
+            columnPosition,
             currentDayStartRow,
             rowIdx,
           );
           if (typeof fallbackColumn === 'number' && fallbackColumn >= 0) {
             cellStartColumn = fallbackColumn;
-          } else {
-            cellStartColumn = columnPosition;
           }
         }
 
@@ -261,16 +306,16 @@ export class TimetableParser {
           }
         }
 
-        const classesInfo = this.extractClassesFromCell(
+        const classInfo = this.extractClassesFromCell(
           cell,
           currentDay,
           cellStartColumn,
-          result.className,
+          this.extractClassName(document),
         );
-        if (classesInfo.length > 0) {
-          const dayInfo = dayData.get(currentDay!);
-          if (dayInfo && !dayInfo.note) {
-            dayInfo.classes.push(...classesInfo);
+        if (classInfo) {
+          const daySchedule = dayData.get(currentDay);
+          if (daySchedule) {
+            daySchedule.classes.push(...classInfo);
           }
         }
 
@@ -279,8 +324,12 @@ export class TimetableParser {
     });
 
     dayData.forEach((dayInfo) => {
-      dayInfo.classes.sort((a, b) => a.slot - b.slot);
-      result.days.push(dayInfo);
+      if (dayInfo.note === null) {
+        dayInfo.classes.sort((a, b) => a.slot - b.slot);
+        result.days.push(dayInfo);
+      } else if (dayInfo.classes.length === 0 && dayInfo.note) {
+        result.days.push(dayInfo);
+      }
     });
 
     return result;
@@ -307,8 +356,14 @@ export class TimetableParser {
     const innerTable = cell.querySelector('table');
     if (!bgcolor || !innerTable || !currentDay) return [];
 
-    const slotNum =
-      cellStartColumn <= 0 ? 1 : Math.floor((cellStartColumn - 1) / 2) + 1;
+    let slotNum: number;
+    if (cellStartColumn <= 0) {
+      slotNum = 2;
+    } else {
+      if (cellStartColumn == 2) slotNum = 2;
+      else slotNum = Math.floor((cellStartColumn - 1) / 2) + 1;
+    }
+
     const colspan = parseInt(cell.getAttribute('colspan') || '1', 10);
 
     const commonData: CommonClassData = {
