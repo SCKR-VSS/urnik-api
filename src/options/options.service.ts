@@ -43,9 +43,12 @@ export class OptionsService {
       weeks.push({ value: week.id, label: week.label, isCurrent });
     }
 
+    const professors = await this.prisma.professor.findMany();
+
     const options = {
       classes,
       weeks,
+      professors
     };
 
     await this.cacheManager.set(cacheKey, options);

@@ -1,11 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-//import { ApiKeyService } from './api-key.service';
-//import { PrismaModule } from '../prisma/prisma.module'; // Add when using Prisma
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [ConfigModule /*, PrismaModule */],
-  providers: [/*ApiKeyService*/],
-  exports: [/*ApiKeyService*/],
+  imports: [ConfigModule, PrismaModule],
 })
 export class AuthModule {}

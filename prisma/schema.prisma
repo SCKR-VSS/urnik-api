@@ -13,6 +13,7 @@ model Class {
   name String
 
   timetables Timetable[]
+  mails      Mail[]
 }
 
 model Week {
@@ -32,7 +33,24 @@ model Timetable {
   hash    String
 }
 
+model Mail {
+  id       Int    @id @default(autoincrement())
+  email    String
+  class    Class  @relation(fields: [classId], references: [id])
+  classId  Int
+  subjects Json?
+  groups   Json?
+  hash     String
+}
+
 model Professor {
   id   Int    @id @default(autoincrement())
   name String
+}
+
+model ApiKey {
+  id         Int      @id @default(autoincrement())
+  key        String   @unique
+  createdAt  DateTime @default(now())
+  usageCount Int      @default(0)
 }

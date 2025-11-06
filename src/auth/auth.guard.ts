@@ -6,13 +6,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Observable } from 'rxjs';
-//import { ApiKeyService } from '../api-key.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class AccessGuard implements CanActivate {
   constructor(
     private readonly configService: ConfigService,
-    private readonly apiKeyService: any,
+    private readonly prismaService: PrismaService,
   ) {}
 
   canActivate(
@@ -22,12 +22,13 @@ export class AccessGuard implements CanActivate {
       return true;
     }
     const request = context.switchToHttp().getRequest();
+
+    if (request.path === '/docs') return true;
+
     const origin = request.headers.origin;
-    const allowedDomain = this.configService.get<string>('ALLOWED_DOMAIN');
+    const allowedDomains = [this.configService.get<string>('ALLOWED_DOMAIN'), this.configService.get<string>('API_DOMAIN')];
 
-    console.log(allowedDomain)
-
-    if (origin === allowedDomain) {
+    if (origin && allowedDomains.includes(origin)) {
       return true;
     }
 
@@ -36,6 +37,19 @@ export class AccessGuard implements CanActivate {
       throw new UnauthorizedException('API Key is required');
     }
 
-    return this.apiKeyService.validateApiKey(apiKey);
+    const keyExists = this.prismaService.apiKey.findUnique({
+      where: { key: apiKey },
+    });
+
+    if (!keyExists) {
+      throw new UnauthorizedException('Invalid API Key');
+    }
+
+    this.prismaService.apiKey.update({
+      where: { key: apiKey },
+      data: { usageCount: { increment: 1 } },
+    });
+
+    return true;
   }
 }

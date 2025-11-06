@@ -9,6 +9,8 @@ import { ConfigModule } from '@nestjs/config';
 import { GroupsModule } from './groups/groups.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
+import { CalendarModule } from './calendar/calendar.module';
+import { MailingModule } from './mailing/mailing.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { PrismaModule } from './prisma/prisma.module';
     GroupsModule,
     ScheduleModule.forRoot(),
     PrismaModule,
+    CalendarModule,
+    MailingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
