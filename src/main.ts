@@ -9,6 +9,10 @@ import { apiReference } from '@scalar/nestjs-api-reference';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.enableCors({
+    origin: 'https://urnik.safko.eu',
+  });
+
   const config = new DocumentBuilder()
     .setTitle('VSŠ Kranj Urnik API')
     .setDescription('API za VSŠ Kranj urnik API\n\nČe želite uporabljati API se obrnite na trenutnega skrbnika: nejc.zivic@vss.sckr.si')
