@@ -27,7 +27,7 @@ export class AppService implements OnApplicationBootstrap {
 
   @Cron('*/30 * * * *')
   async checkTimetable() {
-    if (process.env.NODE_ENV !== 'development') return;
+    if (process.env.NODE_ENV === 'development') return;
 
     const htm = await fetch(
       'https://sckr.si/vss/urniki/frames/navbar.htm',
