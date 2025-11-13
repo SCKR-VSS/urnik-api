@@ -78,6 +78,64 @@ export class MailingService {
     return 'Mail saved and confirmation email sent successfully';
   }
 
+  async saveProfessorMail(email: string, profId: number) {
+    const existing = await this.prisma.profmail.findFirst({
+      where: {
+        email,
+        profId: profId,
+      },
+    });
+
+    if (existing) {
+      throw new ForbiddenException(
+        'Ta poštni naslov je že uporabljen za tega profesorja.',
+      );
+    }
+
+    const emailHash = crypto
+      .createHash('sha256')
+      .update(email + profId)
+      .digest('hex');
+    this.prisma.profmail
+      .create({
+        data: {
+          email,
+          profId,
+          hash: emailHash,
+        },
+      })
+      .then((save) => {
+        if (save.id) {
+          return 'Professor mail saved successfully';
+        } else {
+          throw new InternalServerErrorException();
+        }
+      });
+
+    const professor = await this.prisma.professor.findUnique({
+      where: {
+        id: profId,
+      },
+    });
+
+    const emailTemplate = fs.readFileSync(
+      'src/mailing/mails/prof_subscribed.html',
+      'utf-8',
+    );
+    const subject = `Naročnina na spremembe urnika za profesorja ${professor?.name} je potrjena`;
+
+    let finalHtml = emailTemplate
+      .replace('{{professor_name}}', professor?.name || '')
+      .replace(
+        '{{unsubscribe_link}}',
+        `${process.env.API_DOMAIN}/mailing/remove?email=${encodeURIComponent(emailHash)}`,
+      );
+
+    await this.sendEmail(email, subject, finalHtml);
+
+    return 'Professor mail saved and confirmation email sent successfully';
+  }
+
   async removeMail(hash: string) {
     const deleted = await this.prisma.mail.deleteMany({
       where: {
@@ -86,7 +144,15 @@ export class MailingService {
     });
 
     if (deleted.count === 0) {
-      throw new ForbiddenException('Ni bilo mogoče najti vnosa za izbris.');
+      const profDeleted = await this.prisma.profmail.deleteMany({
+        where: {
+          hash,
+        },
+      });
+      if (profDeleted.count === 0) {
+        throw new ForbiddenException('Ni bilo mogoče najti vnosa za izbris.');
+      }
+      return 'Professor mail removed successfully';
     }
     return 'Mail removed successfully';
   }
@@ -100,9 +166,9 @@ export class MailingService {
   }
 
   async sendEmail(to: string, subject: string, html: string) {
-    return 'Email sent';
+    //return 'Email sent';
 
-    /*const transporter = nodemailer.createTransport({
+    const transporter = nodemailer.createTransport({
       host: process.env.MAIL_HOST,
       port: Number(process.env.MAIL_PORT),
       auth: {
@@ -122,7 +188,7 @@ export class MailingService {
       throw new InternalServerErrorException('Failed to send email');
     }
 
-    return 'Email sent successfully';*/
+    return 'Email sent successfully';
   }
 
   async getEmailsByProfessor(professorId: number) {

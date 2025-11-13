@@ -15,6 +15,15 @@ export class MailingController {
         return this.mailingService.saveMail(body.email, classIdNum, body.subjects, body.groups);
     }
 
+    @Post('professor/subscribe/:professorId')
+    async professorSubscribe(
+        @Param('professorId') professorId: string,
+        @Body() body: { email: string },
+    ) {
+        const professorIdNum = parseInt(professorId);
+        return this.mailingService.saveProfessorMail(body.email, professorIdNum);
+    }
+
     @Get('remove')
     async remove(
         @Query('email') email: string,
