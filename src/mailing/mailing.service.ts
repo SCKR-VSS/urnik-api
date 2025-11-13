@@ -103,11 +103,11 @@ export class MailingService {
     return 'Email sent';
 
     /*const transporter = nodemailer.createTransport({
-      host: process.env.HOST_SMTP,
-      port: process.env.PORT_SMTP,
+      host: process.env.MAIL_HOST,
+      port: Number(process.env.MAIL_PORT),
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
       },
     });
 
@@ -123,5 +123,13 @@ export class MailingService {
     }
 
     return 'Email sent successfully';*/
+  }
+
+  async getEmailsByProfessor(professorId: number) {
+    return this.prisma.profmail.findMany({
+      where: {
+        profId: professorId,
+      },
+    });
   }
 }

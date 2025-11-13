@@ -46,6 +46,8 @@ model Mail {
 model Professor {
   id   Int    @id @default(autoincrement())
   name String
+
+  profmails Profmail[]
 }
 
 model ApiKey {
@@ -53,4 +55,12 @@ model ApiKey {
   key        String   @unique
   createdAt  DateTime @default(now())
   usageCount Int      @default(0)
+}
+
+model Profmail {
+  id        Int       @id @default(autoincrement())
+  email     String
+  professor Professor @relation(fields: [profId], references: [id])
+  profId    Int
+  hash      String
 }

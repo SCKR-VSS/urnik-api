@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from '@nestjs/cache-manager';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -94,9 +94,13 @@ export class TimetableService {
         days: filteredDays,
       };
 
+      if (!filteredTimetable) throw new InternalServerErrorException();
+
       await this.cacheManager.set(key, filteredTimetable);
 
       return filteredTimetable;
+    } else {
+      throw new InternalServerErrorException();
     }
   }
 

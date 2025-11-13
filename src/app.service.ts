@@ -5,58 +5,10 @@ import { TimetableParser } from './timetable/parseTimetable';
 import * as crypto from 'crypto';
 import { MailingService } from './mailing/mailing.service';
 import * as fs from 'fs';
-import slots from './constants/slots';
-
-function compareTimetables(oldData: any, newData: any): string {
-  const changes: string[] = [];
-  const oldClasses = new Map<string, any>();
-
-  oldData.days.forEach((day: any, dayIndex: number) => {
-    day.classes.forEach((cls: any) => {
-      const key = `${dayIndex}-${cls.slot}-${cls.subject}`;
-      oldClasses.set(key, cls);
-    });
-  });
-
-  newData.days.forEach((day: any, dayIndex: number) => {
-    day.classes.forEach((cls: any) => {
-      const key = `${dayIndex}-${cls.slot}-${cls.subject}`;
-      const oldCls = oldClasses.get(key);
-
-      if (oldCls) {
-        const modifications: string[] = [];
-        if (oldCls.teacher !== cls.teacher) {
-          modifications.push(`profesor iz <strong>${oldCls.teacher || 'N/A'}</strong> v <strong>${cls.teacher || 'N/A'}</strong>`);
-        }
-        if (oldCls.classroom !== cls.classroom) {
-          modifications.push(`učilnica iz <strong>${oldCls.classroom || 'N/A'}</strong> v <strong>${cls.classroom || 'N/A'}</strong>`);
-        }
-        if (oldCls.group !== cls.group) {
-          modifications.push(`skupina iz <strong>${oldCls.group || 'vse'}</strong> v <strong>${cls.group || 'vse'}</strong>`);
-        }
-
-        if (modifications.length > 0) {
-          const dayName = day.day.split(' ')[0];
-          const startTime = slots[cls.slot]?.split(' ')[0] || '';
-          changes.push(`<p><strong>${dayName} ob ${startTime} (${cls.subject}):</strong> sprememba za ${modifications.join(', ')}.</p>`);
-        }
-        oldClasses.delete(key);
-      } else {
-        const dayName = day.day.split(' ')[0];
-        const startTime = slots[cls.slot]?.split(' ')[0] || '';
-        changes.push(`<p><strong>Dodan nov termin:</strong> ${cls.subject} v ${dayName} ob ${startTime} v učilnici ${cls.classroom}.</p>`);
-      }
-    });
-  });
-
-  oldClasses.forEach((cls) => {
-    const dayName = cls.dayName.split(' ')[0];
-    const startTime = slots[cls.slot]?.split(' ')[0] || '';
-    changes.push(`<p><strong>Odstranjen termin:</strong> ${cls.subject} v ${dayName} ob ${startTime}.</p>`);
-  });
-
-  return changes.join('');
-}
+import {
+  compareTimetables,
+  compareTimetablesForProfessor,
+} from './functions/timetableCompare';
 
 @Injectable()
 export class AppService implements OnApplicationBootstrap {
@@ -75,7 +27,7 @@ export class AppService implements OnApplicationBootstrap {
 
   @Cron('*/30 * * * *')
   async checkTimetable() {
-    if (process.env.NODE_ENV === 'development') return;
+    if (process.env.NODE_ENV !== 'development') return;
 
     const htm = await fetch(
       'https://sckr.si/vss/urniki/frames/navbar.htm',
@@ -173,17 +125,35 @@ export class AppService implements OnApplicationBootstrap {
 
           try {
             const paddedNum = classItem.id.toString().padStart(5, '0');
-            const url = `https://sckr.si/vss/urniki/c/${week.id}/c${paddedNum}.htm`;
+            let urlWeek = week.id.toString();
+            if (week.id < 10) {
+              urlWeek = '0' + week.id;
+            }
+            const url = `https://sckr.si/vss/urniki/c/${urlWeek}/c${paddedNum}.htm`;
             const response = await fetch(url);
 
             if (response.ok) {
               const html = await response.text();
 
-              const parsedTimetable = JSON.stringify(
-                this.parser.parse(html, week.label),
-              );
+              const timetableData = this.parser.parse(html, week.label);
+
+              const parsedTimetable = JSON.stringify(timetableData);
 
               const hash = crypto.createHash('md5').update(html).digest('hex');
+
+              const professorDb = await this.prisma.professor.findMany();
+
+              let professorIds: number[] = [];
+
+              for (const prof of professorDb) {
+                if (
+                  timetableData.days.some((day: any) =>
+                    day.classes.some((cls: any) => cls.teacher === prof.name),
+                  )
+                ) {
+                  professorIds.push(prof.id);
+                }
+              }
 
               await this.prisma.timetable.create({
                 data: {
@@ -210,7 +180,11 @@ export class AppService implements OnApplicationBootstrap {
 
           try {
             const paddedNum = classItem.id.toString().padStart(5, '0');
-            const url = `https://sckr.si/vss/urniki/c/${week.id}/c${paddedNum}.htm`;
+            let urlWeek = week.id.toString();
+            if (week.id < 10) {
+              urlWeek = '0' + week.id;
+            }
+            const url = `https://sckr.si/vss/urniki/c/${urlWeek}/c${paddedNum}.htm`;
 
             const response = await fetch(url);
 
@@ -239,7 +213,7 @@ export class AppService implements OnApplicationBootstrap {
 
                 const changeDetailsHtml = compareTimetables(
                   oldTimetableData,
-                  newTimetableData
+                  newTimetableData,
                 );
 
                 if (changeDetailsHtml) {
@@ -255,23 +229,31 @@ export class AppService implements OnApplicationBootstrap {
                     const subject = `Posodobljen urnik za ${classItem.name} - ${week.label}`;
 
                     for (const mail of emails) {
-                      const userGroups = JSON.parse(JSON.stringify(mail.groups)) || {};
-                      const userSubjects = JSON.parse(JSON.stringify(mail.subjects)) || [];
+                      const userGroups =
+                        JSON.parse(JSON.stringify(mail.groups)) || {};
+                      const userSubjects =
+                        JSON.parse(JSON.stringify(mail.subjects)) || [];
 
                       let hasRelevantChange = false;
 
-                      if (userSubjects.length === 0 || Object.keys(userGroups).length === 0) {
+                      if (
+                        userSubjects.length === 0 ||
+                        Object.keys(userGroups).length === 0
+                      ) {
                         hasRelevantChange = true;
                       }
 
                       if (!hasRelevantChange) {
                         for (const day of newTimetableData.days) {
                           for (const cls of day.classes) {
-                            const subjectCode = cls.subject.split(" ")[0];
-                            
+                            const subjectCode = cls.subject.split(' ')[0];
+
                             if (
-                              (userSubjects.length === 0 || userSubjects.includes(subjectCode)) &&
-                              (Object.keys(userGroups).length === 0 || userGroups[subjectCode] === cls.group || userGroups[subjectCode] === 0)
+                              (userSubjects.length === 0 ||
+                                userSubjects.includes(subjectCode)) &&
+                              (Object.keys(userGroups).length === 0 ||
+                                userGroups[subjectCode] === cls.group ||
+                                userGroups[subjectCode] === 0)
                             ) {
                               hasRelevantChange = true;
                               break;
@@ -285,19 +267,109 @@ export class AppService implements OnApplicationBootstrap {
                         continue;
                       }
 
-                      let finalHtml = emailTemplate.replace(
-                        '{{change_details}}',
-                        changeDetailsHtml,
-                      ).replace(
-                        '{{remove_mail}}',
-                        `${process.env.API_DOMAIN}/mailing/remove?email=${encodeURIComponent(mail.hash)}&classId=${classItem.id}`
-                      );
+                      let finalHtml = emailTemplate
+                        .replace('{{change_details}}', changeDetailsHtml)
+                        .replace(
+                          '{{remove_mail}}',
+                          `${process.env.API_DOMAIN}/mailing/remove?email=${encodeURIComponent(mail.hash)}&classId=${classItem.id}`,
+                        );
 
                       await this.mailingService.sendEmail(
                         mail.email,
                         subject,
                         finalHtml,
                       );
+                    }
+                  }
+
+                  const involvedProfessors = new Set<string>();
+                  const oldClassesMap = new Map<string, any>();
+
+                  oldTimetableData.days.forEach(
+                    (day: any, dayIndex: number) => {
+                      day.classes.forEach((cls: any) => {
+                        const key = `${dayIndex}-${cls.slot}-${cls.subject}`;
+                        oldClassesMap.set(key, cls);
+                      });
+                    },
+                  );
+
+                  newTimetableData.days.forEach(
+                    (day: any, dayIndex: number) => {
+                      day.classes.forEach((cls: any) => {
+                        const key = `${dayIndex}-${cls.slot}-${cls.subject}`;
+                        const oldCls = oldClassesMap.get(key);
+
+                        if (oldCls) {
+                          const hasChanged =
+                            oldCls.teacher !== cls.teacher ||
+                            oldCls.classroom !== cls.classroom ||
+                            oldCls.group !== cls.group;
+
+                          if (hasChanged) {
+                            if (oldCls.teacher)
+                              involvedProfessors.add(oldCls.teacher);
+                            if (cls.teacher)
+                              involvedProfessors.add(cls.teacher);
+                          }
+                          oldClassesMap.delete(key);
+                        } else {
+                          if (cls.teacher) involvedProfessors.add(cls.teacher);
+                        }
+                      });
+                    },
+                  );
+
+                  oldClassesMap.forEach((oldCls) => {
+                    if (oldCls.teacher) involvedProfessors.add(oldCls.teacher);
+                  });
+
+                  const emailTemplate = fs.readFileSync(
+                    'src/mailing/mails/change.html',
+                    'utf-8',
+                  );
+
+                  for (const profName of involvedProfessors) {
+                    const profChangeDetailsHtml = compareTimetablesForProfessor(
+                      oldTimetableData,
+                      newTimetableData,
+                      profName,
+                    );
+
+                    if (!profChangeDetailsHtml) {
+                      continue;
+                    }
+
+                    const profRecord = await this.prisma.professor.findFirst({
+                      where: {
+                        name: {
+                          contains: profName,
+                          mode: 'insensitive',
+                        },
+                      },
+                    });
+
+                    if (profRecord) {
+                      const profEmails =
+                        await this.mailingService.getEmailsByProfessor(
+                          profRecord.id,
+                        );
+                      const profSubject = `Posodobljen urnik za profesorja ${profName} - ${week.label}`;
+
+                      for (const profMail of profEmails) {
+                        let profHtml = emailTemplate
+                          .replace('{{change_details}}', changeDetailsHtml)
+                          .replace(
+                            '{{remove_mail}}',
+                            `${process.env.API_DOMAIN}/mailing/remove?email=${encodeURIComponent(profMail.hash)}&professorId=${profRecord.id}`,
+                          );
+
+                        await this.mailingService.sendEmail(
+                          profMail.email,
+                          profSubject,
+                          profHtml,
+                        );
+                      }
                     }
                   }
                 }

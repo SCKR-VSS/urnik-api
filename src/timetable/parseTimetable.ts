@@ -83,7 +83,7 @@ export class TimetableParser {
       const scriptContent = script.textContent;
       if (scriptContent) {
         const match = scriptContent.match(classRegex);
-        
+
         if (match && match[1]) {
           try {
             const classArray = JSON.parse(match[1]);
