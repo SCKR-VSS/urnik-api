@@ -18,7 +18,7 @@ export class AppService implements OnApplicationBootstrap {
   constructor(
     private prisma: PrismaService,
     private mailingService: MailingService,
-  ) {}
+  ) { }
 
   onApplicationBootstrap() {
     this.logger.log('Application has started. Initializing timetable check...');
@@ -27,7 +27,8 @@ export class AppService implements OnApplicationBootstrap {
 
   @Cron('*/30 * * * *')
   async checkTimetable() {
-    if (process.env.NODE_ENV === 'development') return;
+    this.logger.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+    // if (process.env.NODE_ENV === 'development') return;
 
     const htm = await fetch(
       'https://sckr.si/vss/urniki/frames/navbar.htm',

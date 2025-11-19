@@ -141,7 +141,7 @@ export class TimetableParser {
     const table = document.querySelector<HTMLTableElement>('table[border="3"]');
     if (!table) return result;
 
-    const rows = Array.from(table.querySelectorAll('tr'));
+    const rows = Array.from(table.rows);
 
     const grid: (GridCellRef | undefined)[][] = [];
     const MAX_COLS = 34;
