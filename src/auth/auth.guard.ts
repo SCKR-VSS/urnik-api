@@ -18,6 +18,10 @@ export class AccessGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (this.configService.get<string>('NODE_ENV') === 'development') {
+      return true;
+    }
+
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -28,6 +32,19 @@ export class AccessGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
+    if (request.path === '/docs') return true;
+
+    const origin = request.headers.origin;
+
+    const allowedDomains = [
+      this.configService.get<string>('ALLOWED_DOMAIN'),
+      this.configService.get<string>('API_DOMAIN'),
+    ];
+
+    if (origin && allowedDomains.includes(origin)) {
+      return true;
+    }
+
     const providedKey = request.headers['x-api-key'];
 
     if (!providedKey) {
