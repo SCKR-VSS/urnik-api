@@ -166,7 +166,7 @@ export class MailingService {
   }
 
   async sendEmail(to: string, subject: string, html: string) {
-    //return 'Email sent';
+    return 'Email sent';
 
     const transporter = nodemailer.createTransport({
       host: process.env.MAIL_HOST,
