@@ -345,7 +345,6 @@ export class AppService implements OnApplicationBootstrap {
                       where: {
                         name: {
                           contains: profName,
-                          mode: 'insensitive',
                         },
                       },
                     });

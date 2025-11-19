@@ -1,54 +1,46 @@
 import {
-  Injectable,
   CanActivate,
   ExecutionContext,
+  Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Observable } from 'rxjs';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { Reflector } from '@nestjs/core';
+import { IS_PUBLIC_KEY } from 'src/auth/public.decorator';
 
 @Injectable()
 export class AccessGuard implements CanActivate {
   constructor(
     private readonly configService: ConfigService,
-    private readonly prismaService: PrismaService,
+    private readonly prisma: PrismaService,
+    private readonly reflector: Reflector,
   ) {}
 
-  canActivate(
-    context: ExecutionContext,
-  ): boolean | Promise<boolean> | Observable<boolean> {
-    if (this.configService.get<string>('NODE_ENV') === 'development') {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
       return true;
     }
+
     const request = context.switchToHttp().getRequest();
+    const providedKey = request.headers['x-api-key'];
 
-    if (request.path === '/docs') return true;
-
-    const origin = request.headers.origin;
-    const allowedDomains = [this.configService.get<string>('ALLOWED_DOMAIN'), this.configService.get<string>('API_DOMAIN')];
-
-    if (origin && allowedDomains.includes(origin)) {
-      return true;
+    if (!providedKey) {
+      throw new UnauthorizedException('API key is missing.');
     }
 
-    const apiKey = request.headers['x-api-key'];
+    const apiKey = await this.prisma.apiKey.findUnique({
+      where: { key: providedKey },
+    });
+
     if (!apiKey) {
-      throw new UnauthorizedException('API Key is required');
+      throw new UnauthorizedException('Invalid API key.');
     }
-
-    const keyExists = this.prismaService.apiKey.findUnique({
-      where: { key: apiKey },
-    });
-
-    if (!keyExists) {
-      throw new UnauthorizedException('Invalid API Key');
-    }
-
-    this.prismaService.apiKey.update({
-      where: { key: apiKey },
-      data: { usageCount: { increment: 1 } },
-    });
 
     return true;
   }

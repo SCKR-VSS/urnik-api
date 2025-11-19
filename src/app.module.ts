@@ -11,6 +11,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { MailingModule } from './mailing/mailing.module';
+import { ProvisionModule } from './provision/provision.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { MailingModule } from './mailing/mailing.module';
     }),
     GroupsModule,
     ScheduleModule.forRoot(),
+    ProvisionModule,
     PrismaModule,
     CalendarModule,
     MailingModule,

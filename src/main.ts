@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { AccessGuard } from './auth/auth.guard';
 import { ConfigService } from '@nestjs/config';
@@ -15,7 +15,9 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('VSŠ Kranj Urnik API')
-    .setDescription('API za VSŠ Kranj urnik API\n\nČe želite uporabljati API se obrnite na trenutnega skrbnika: nejc.zivic@vss.sckr.si')
+    .setDescription(
+      'API za VSŠ Kranj urnik API\n\nČe želite uporabljati API se obrnite na trenutnega skrbnika: nejc.zivic@vss.sckr.si',
+    )
     .setVersion('1.0')
     .addApiKey(
       {
@@ -24,10 +26,10 @@ async function bootstrap() {
         in: 'header',
         description: 'Vnesite vaš API ključ tukaj',
       },
-      'apiKey'
+      'apiKey',
     )
     .addSecurityRequirements('apiKey')
-    .build()
+    .build();
 
   const document = SwaggerModule.createDocument(app, config);
 
@@ -37,9 +39,12 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const prismaService = app.get(PrismaService);
+  const reflector = app.get(Reflector);
 
-  app.useGlobalGuards(new AccessGuard(configService, prismaService));
+  app.useGlobalGuards(new AccessGuard(configService, prismaService, reflector));
 
+  // uncomment if exposing locally
+  return await app.listen(3000, '0.0.0.0');
   await app.listen(3000);
 }
 bootstrap();
