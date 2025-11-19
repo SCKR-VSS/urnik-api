@@ -18,7 +18,7 @@ const escapeIcsText = (text: string): string => {
 
 @Injectable()
 export class CalendarService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async createCalendar(
     week: number,
@@ -58,14 +58,14 @@ export class CalendarService {
           for (const cls of day.classes) {
             const dateParts = day.day.match(/(\d{1,2})\.(\d{1,2})\.?/);
             if (!dateParts) continue;
-  
+
             const dayOfMonth = parseInt(dateParts[1], 10);
             const month = parseInt(dateParts[2], 10);
-  
+
             const startSlotTime = slots[cls.slot]?.split(' ')[0];
             const endSlotTime = slots[cls.slot + cls.duration - 1]?.split(' ')[1];
             if (!startSlotTime || !endSlotTime) continue;
-  
+
             const formatTime = (time: string) => time.padStart(5, '0');
             const startDateTime = new Date(
               `${year}-${month}-${dayOfMonth}T${formatTime(startSlotTime)}`,
@@ -73,14 +73,14 @@ export class CalendarService {
             const endDateTime = new Date(
               `${year}-${month}-${dayOfMonth}T${formatTime(endSlotTime)}`,
             );
-  
+
             if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
               continue;
             }
-  
+
             const uid = randomBytes(16).toString('hex');
             const description = `Profesor: ${cls.teacher}${cls.group ? `\\nSkupina ${cls.group}` : ''}`;
-  
+
             const event: ics.EventAttributes = {
               start: [
                 startDateTime.getFullYear(),
@@ -102,11 +102,11 @@ export class CalendarService {
               location: `Uč. ${cls.classroom}`,
               uid: uid,
             };
-  
+
             icsEvents.push(event);
           }
         }
-  
+
         const { error, value } = ics.createEvents(icsEvents);
         if (error) {
           return { error: 'Error generating ICS file' };
@@ -191,6 +191,7 @@ export class CalendarService {
             description: description,
             location: `Uč. ${cls.classroom}`,
             uid: uid,
+            startOutputType: 'local',
           };
 
           icsEvents.push(event);
