@@ -166,7 +166,7 @@ export class MailingService {
   }
 
   async sendEmail(to: string, subject: string, html: string) {
-    return 'Email sent';
+    if (process.env.NODE_ENV === 'development') return 'Email sending skipped in development mode';
 
     const transporter = nodemailer.createTransport({
       host: process.env.MAIL_HOST,
