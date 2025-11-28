@@ -45,8 +45,8 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ncc-${{ github.sha }}
-          name: 'NCC Build ${{ github.sha }}'
+          tag_name: ncc-${{ github.run_number }}
+          name: 'NCC Build ${{ github.run_number }}'
           draft: false
           prerelease: false
           files: bundle.zip
