@@ -1,24 +1,12 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { randomBytes } from 'crypto';
 import slots from 'src/constants/slots';
 import * as ics from 'ics';
 
-const formatIcsDate = (date: Date): string => {
-  return date.toISOString().replace(/[-:]/g, '').split('.')[0];
-};
-
-const escapeIcsText = (text: string): string => {
-  return text
-    .replace(/\\/g, '\\\\')
-    .replace(/;/g, '\\;')
-    .replace(/,/g, '\\,')
-    .replace(/\n/g, '\\n');
-};
-
 @Injectable()
 export class CalendarService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async createCalendar(
     week: number,
@@ -44,81 +32,27 @@ export class CalendarService {
       },
     });
 
-    if (timeTable) {
-      const timetableData = JSON.parse(timeTable.data as string);
+    if (!timeTable) {
+      return {
+        error: 'Timetable not found for the specified week and classId',
+      };
+    }
 
-      const year = new Date(
-        timetableData.weekLabel.split('.').reverse().join('-'),
-      ).getFullYear();
+    const timetableData = JSON.parse(timeTable.data as string);
 
-      if (!options || (!options.groups && !options.subjects)) {
-        const icsEvents: any[] = [];
+    // Extract year from weekLabel (format: "dd.mm.yyyy")
+    const year = new Date(
+      timetableData.weekLabel.split('.').reverse().join('-'),
+    ).getFullYear();
 
-        for (const day of timetableData) {
-          for (const cls of day.classes) {
-            const dateParts = day.day.match(/(\d{1,2})\.(\d{1,2})\.?/);
-            if (!dateParts) continue;
+    // Get days to process - apply filtering if options provided
+    let daysToProcess = timetableData.days;
 
-            const dayOfMonth = parseInt(dateParts[1], 10);
-            const month = parseInt(dateParts[2], 10);
-
-            const startSlotTime = slots[cls.slot]?.split(' ')[0];
-            const endSlotTime = slots[cls.slot + cls.duration - 1]?.split(' ')[1];
-            if (!startSlotTime || !endSlotTime) continue;
-
-            const formatTime = (time: string) => time.padStart(5, '0');
-            const startDateTime = new Date(
-              `${year}-${month}-${dayOfMonth}T${formatTime(startSlotTime)}`,
-            );
-            const endDateTime = new Date(
-              `${year}-${month}-${dayOfMonth}T${formatTime(endSlotTime)}`,
-            );
-
-            if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-              continue;
-            }
-
-            const uid = randomBytes(16).toString('hex');
-            const description = `Profesor: ${cls.teacher}${cls.group ? `\\nSkupina ${cls.group}` : ''}`;
-
-            const event: ics.EventAttributes = {
-              start: [
-                startDateTime.getFullYear(),
-                startDateTime.getMonth() + 1,
-                startDateTime.getDate(),
-                startDateTime.getHours(),
-                startDateTime.getMinutes(),
-              ],
-              duration: {
-                hours: Math.floor(
-                  (endDateTime.getTime() - startDateTime.getTime()) / 3600000,
-                ),
-                minutes:
-                  ((endDateTime.getTime() - startDateTime.getTime()) % 3600000) /
-                  60000,
-              },
-              title: cls.subject,
-              description: description,
-              location: `Uč. ${cls.classroom}`,
-              uid: uid,
-            };
-
-            icsEvents.push(event);
-          }
-        }
-
-        const { error, value } = ics.createEvents(icsEvents);
-        if (error) {
-          return { error: 'Error generating ICS file' };
-        } else {
-          return value as string;
-        }
-      }
-
+    if (options?.groups || options?.subjects) {
       const userGroups = options.groups;
       const userSubjects = options.subjects;
 
-      const filteredDays = timetableData.days.map((day: any) => {
+      daysToProcess = timetableData.days.map((day: any) => {
         const filteredClasses = day.classes.filter((cls: any) => {
           const subjectMatch =
             !userSubjects ||
@@ -141,73 +75,55 @@ export class CalendarService {
 
         return { ...day, classes: filteredClasses };
       });
-
-      const icsEvents: any[] = [];
-
-      for (const day of filteredDays) {
-        for (const cls of day.classes) {
-          const dateParts = day.day.match(/(\d{1,2})\.(\d{1,2})\.?/);
-          if (!dateParts) continue;
-
-          const dayOfMonth = parseInt(dateParts[1], 10);
-          const month = parseInt(dateParts[2], 10);
-
-          const startSlotTime = slots[cls.slot]?.split(' ')[0];
-          const endSlotTime = slots[cls.slot + cls.duration - 1]?.split(' ')[1];
-          if (!startSlotTime || !endSlotTime) continue;
-
-          const formatTime = (time: string) => time.padStart(5, '0');
-          const startDateTime = new Date(
-            `${year}-${month}-${dayOfMonth}T${formatTime(startSlotTime)}`,
-          );
-          const endDateTime = new Date(
-            `${year}-${month}-${dayOfMonth}T${formatTime(endSlotTime)}`,
-          );
-
-          if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-            continue;
-          }
-
-          const uid = randomBytes(16).toString('hex');
-          const description = `Profesor: ${cls.teacher}${cls.group ? ` Skupina ${cls.group}` : ''}`;
-
-          const event: ics.EventAttributes = {
-            start: [
-              startDateTime.getFullYear(),
-              startDateTime.getMonth() + 1,
-              startDateTime.getDate(),
-              startDateTime.getHours(),
-              startDateTime.getMinutes(),
-            ],
-            duration: {
-              hours: Math.floor(
-                (endDateTime.getTime() - startDateTime.getTime()) / 3600000,
-              ),
-              minutes:
-                ((endDateTime.getTime() - startDateTime.getTime()) % 3600000) /
-                60000,
-            },
-            title: cls.subject,
-            description: description,
-            location: `Uč. ${cls.classroom}`,
-            uid: uid,
-            startOutputType: 'local',
-          };
-
-          icsEvents.push(event);
-        }
-      }
-
-      const { error, value } = ics.createEvents(icsEvents);
-      if (error) {
-        return { error: 'Error generating ICS file' };
-      } else {
-        return value as string;
-      }
-    } else {
-      return {
-        error: 'Timetable not found for the specified week and classId',
-      };
     }
+
+    const icsEvents: ics.EventAttributes[] = [];
+
+    for (const day of daysToProcess) {
+      for (const cls of day.classes) {
+        const dateParts = day.day.match(/(\d{1,2})\.(\d{1,2})\.?/);
+        if (!dateParts) continue;
+
+        const dayOfMonth = parseInt(dateParts[1], 10);
+        const month = parseInt(dateParts[2], 10);
+
+        const startSlotTime = slots[cls.slot]?.split(' ')[0];
+        const endSlotTime = slots[cls.slot + cls.duration - 1]?.split(' ')[1];
+        if (!startSlotTime || !endSlotTime) continue;
+
+        // Parse time strings (format: "H:MM" or "HH:MM")
+        const [startHour, startMinute] = startSlotTime.split(':').map(Number);
+        const [endHour, endMinute] = endSlotTime.split(':').map(Number);
+
+        // Calculate duration in minutes
+        const durationMinutes =
+          (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+
+        const uid = randomBytes(16).toString('hex');
+        const description = `Profesor: ${cls.teacher}${cls.group ? `\nSkupina ${cls.group}` : ''}`;
+
+        const event: ics.EventAttributes = {
+          start: [year, month, dayOfMonth, startHour, startMinute],
+          duration: {
+            hours: Math.floor(durationMinutes / 60),
+            minutes: durationMinutes % 60,
+          },
+          title: cls.subject,
+          description: description,
+          location: `Uč. ${cls.classroom}`,
+          uid: uid,
+          startOutputType: 'local',
+        };
+
+        icsEvents.push(event);
+      }
+    }
+
+    const { error, value } = ics.createEvents(icsEvents);
+    if (error) {
+      return { error: 'Error generating ICS file' };
+    }
+
+    return value as string;
   }
 }
