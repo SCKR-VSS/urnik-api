@@ -37,7 +37,7 @@ jobs:
         run: pnpm build
 
       - name: Install NCC
-        run: pnpm install -g @vercel/ncc
+        run: pnpm install @vercel/ncc
 
       - name: Bundle with NCC
         run: |
