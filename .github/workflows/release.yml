@@ -28,7 +28,7 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-              - name: Generate SQL File
+      - name: Generate SQL File
         run: npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script -o bundle/generated.sql
 
       - name: Build NestJS
