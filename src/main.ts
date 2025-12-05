@@ -10,7 +10,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: 'https://urnik.safko.eu',
+    origin: 'https://urnik.sckr3.si',
   });
 
   const config = new DocumentBuilder()
