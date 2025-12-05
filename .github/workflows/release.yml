@@ -39,6 +39,9 @@ jobs:
       - name: Install NCC
         run: npm install -g @vercel/ncc
 
+      - name: Move files
+        run: cp src/prisma/generated/libquery_engine-debian-openssl-1.0.x.so.node bundle
+
       - name: Bundle with NCC
         run: |
           mkdir -p bundle
