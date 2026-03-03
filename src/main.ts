@@ -44,7 +44,7 @@ async function bootstrap() {
   app.useGlobalGuards(new AccessGuard(configService, prismaService, reflector));
 
   // uncomment if exposing locally
-  return await app.listen(3000, '0.0.0.0');
-  await app.listen(3000);
+  //return await app.listen(3000, '0.0.0.0');
+  await app.listen(process.env.PORT || 3000);
 }
 bootstrap();
