@@ -33,10 +33,10 @@ export class PushService {
     ) {
         const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
         const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
-        const mailto = this.configService.get<string>('VAPID_MAILTO');
+        //const mailto = this.configService.get<string>('VAPID_MAILTO');
 
-        if (publicKey && privateKey && mailto) {
-            webpush.setVapidDetails(`mailto:${mailto}`, publicKey, privateKey);
+        if (publicKey && privateKey /*&& mailto*/) {
+            webpush.setVapidDetails(`mailto:nejc.zivic@vss.sckr.si`, publicKey, privateKey);
         } else {
             this.logger.warn(
                 'VAPID keys or VAPID_MAILTO are not configured. Push notifications will not work.',

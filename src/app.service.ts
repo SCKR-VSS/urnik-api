@@ -241,7 +241,7 @@ export class AppService implements OnApplicationBootstrap {
                     classItem.id,
                   );
 
-                  if (emails.length > 0) {
+                  if (/*emails.length > 0*/ false) {
                     const emailTemplate = fs.readFileSync(
                       'src/mailing/mails/change.html',
                       'utf-8',
