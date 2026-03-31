@@ -54,9 +54,25 @@ model Professor {
 model ApiKey {
   id         Int      @id @default(autoincrement())
   key        String   @unique
+  label      String?
   createdAt  DateTime @default(now())
   usageCount Int      @default(0)
+  revoked    Boolean  @default(false)
   type       Int      @default(0) // 0 = general, 1 = mobile
+}
+
+model PushSubscription {
+  id           Int      @id @default(autoincrement())
+  endpoint     String   @db.Text
+  endpointHash String   @unique
+  p256dh       String
+  auth         String
+  mode         String   // 'class' | 'professor'
+  classId      Int?
+  professorId  Int?
+  subjects     Json?
+  groups       Json?
+  createdAt    DateTime @default(now())
 }
 
 model Profmail {

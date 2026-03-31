@@ -4,11 +4,29 @@ import { PrismaService } from './prisma/prisma.service';
 import { TimetableParser } from './timetable/parseTimetable';
 import * as crypto from 'crypto';
 import { MailingService } from './mailing/mailing.service';
+import { PushService } from './push/push.service';
 import * as fs from 'fs';
 import {
   compareTimetables,
   compareTimetablesForProfessor,
 } from './functions/timetableCompare';
+function getChangedDayIndices(oldData: any, newData: any): number[] {
+  const changed: Set<number> = new Set();
+  oldData.days.forEach((oldDay: any, dayIdx: number) => {
+    const newDay = newData.days[dayIdx];
+    if (!newDay) return changed.add(dayIdx);
+    if (oldDay.classes.length !== newDay.classes.length) return changed.add(dayIdx);
+    for (let i = 0; i < oldDay.classes.length; i++) {
+      const o = oldDay.classes[i], n = newDay.classes[i];
+      if (!n || o.subject !== n.subject || o.teacher !== n.teacher || o.classroom !== n.classroom || o.group !== n.group) {
+        changed.add(dayIdx);
+        break;
+      }
+    }
+  });
+  for (let i = oldData.days.length; i < newData.days.length; i++) changed.add(i);
+  return Array.from(changed);
+}
 
 @Injectable()
 export class AppService implements OnApplicationBootstrap {
@@ -18,6 +36,7 @@ export class AppService implements OnApplicationBootstrap {
   constructor(
     private prisma: PrismaService,
     private mailingService: MailingService,
+    private pushService: PushService,
   ) { }
 
   onApplicationBootstrap() {
@@ -28,7 +47,7 @@ export class AppService implements OnApplicationBootstrap {
   @Cron('*/30 * * * *')
   async checkTimetable() {
     this.logger.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-    // if (process.env.NODE_ENV === 'development') return;
+    if (process.env.NODE_ENV === 'development') return;
 
     const htm = await fetch(
       'https://sckr.si/vss/urniki/frames/navbar.htm',
@@ -283,6 +302,17 @@ export class AppService implements OnApplicationBootstrap {
                     }
                   }
 
+                  const changedDayIndices = getChangedDayIndices(oldTimetableData, newTimetableData);
+                  const changedClassEntries = changedDayIndices.flatMap(
+                    (i) => (newTimetableData.days[i]?.classes || []).map((cls: any) => ({ subject: cls.subject, group: cls.group }))
+                  );
+                  await this.pushService.notifyClass(
+                    classItem.id,
+                    classItem.name,
+                    changedDayIndices.map(i => newTimetableData.days[i]?.day).filter(Boolean),
+                    changedClassEntries,
+                  );
+
                   const involvedProfessors = new Set<string>();
                   const oldClassesMap = new Map<string, any>();
 
@@ -370,6 +400,12 @@ export class AppService implements OnApplicationBootstrap {
                           profHtml,
                         );
                       }
+
+                      await this.pushService.notifyProfessor(
+                        profRecord.id,
+                        profName,
+                        changedDayIndices.map(i => newTimetableData.days[i]?.day).filter(Boolean),
+                      );
                     }
                   }
                 }

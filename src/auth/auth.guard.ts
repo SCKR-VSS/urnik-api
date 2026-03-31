@@ -55,7 +55,7 @@ export class AccessGuard implements CanActivate {
       where: { key: providedKey },
     });
 
-    if (!apiKey) {
+    if (!apiKey || apiKey.revoked) {
       throw new UnauthorizedException('Invalid API key.');
     }
 

@@ -12,6 +12,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { MailingModule } from './mailing/mailing.module';
 import { ProvisionModule } from './provision/provision.module';
+import { AdminModule } from './admin/admin.module';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { ProvisionModule } from './provision/provision.module';
     PrismaModule,
     CalendarModule,
     MailingModule,
+    AdminModule,
+    PushModule,
   ],
   controllers: [AppController],
   providers: [AppService],

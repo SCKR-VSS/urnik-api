@@ -10,7 +10,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: 'https://urnik.sckr3.si',
+    origin: [
+      app.get(ConfigService).get<string>('ALLOWED_DOMAIN'),
+      app.get(ConfigService).get<string>('API_DOMAIN'),
+      "http://localhost:3001",
+      "http://192.168.1.40:3001"
+    ]
   });
 
   const config = new DocumentBuilder()

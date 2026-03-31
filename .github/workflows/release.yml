@@ -47,6 +47,10 @@ jobs:
           mkdir -p bundle
           ncc build dist/main.js -o bundle
 
+      - name: Copy assets
+        run: |
+          cp -r src/assets bundle/assets
+
       - name: Create zip file
         run: |
           cd bundle
