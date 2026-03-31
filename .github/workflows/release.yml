@@ -49,7 +49,7 @@ jobs:
 
       - name: Copy assets
         run: |
-          cp -r src/assets bundle/assets
+          cp -r assets bundle/assets
 
       - name: Create zip file
         run: |
