@@ -9,24 +9,9 @@ import * as fs from 'fs';
 import {
   compareTimetables,
   compareTimetablesForProfessor,
+  compareTimetablesForPush,
+  compareTimetablesForProfessorPush,
 } from './functions/timetableCompare';
-function getChangedDayIndices(oldData: any, newData: any): number[] {
-  const changed: Set<number> = new Set();
-  oldData.days.forEach((oldDay: any, dayIdx: number) => {
-    const newDay = newData.days[dayIdx];
-    if (!newDay) return changed.add(dayIdx);
-    if (oldDay.classes.length !== newDay.classes.length) return changed.add(dayIdx);
-    for (let i = 0; i < oldDay.classes.length; i++) {
-      const o = oldDay.classes[i], n = newDay.classes[i];
-      if (!n || o.subject !== n.subject || o.teacher !== n.teacher || o.classroom !== n.classroom || o.group !== n.group) {
-        changed.add(dayIdx);
-        break;
-      }
-    }
-  });
-  for (let i = oldData.days.length; i < newData.days.length; i++) changed.add(i);
-  return Array.from(changed);
-}
 
 @Injectable()
 export class AppService implements OnApplicationBootstrap {
@@ -302,15 +287,11 @@ export class AppService implements OnApplicationBootstrap {
                     }
                   }
 
-                  const changedDayIndices = getChangedDayIndices(oldTimetableData, newTimetableData);
-                  const changedClassEntries = changedDayIndices.flatMap(
-                    (i) => (newTimetableData.days[i]?.classes || []).map((cls: any) => ({ subject: cls.subject, group: cls.group }))
-                  );
+                  const pushChangeLines = compareTimetablesForPush(oldTimetableData, newTimetableData);
                   await this.pushService.notifyClass(
                     classItem.id,
                     classItem.name,
-                    changedDayIndices.map(i => newTimetableData.days[i]?.day).filter(Boolean),
-                    changedClassEntries,
+                    pushChangeLines,
                   );
 
                   const involvedProfessors = new Set<string>();
@@ -401,10 +382,15 @@ export class AppService implements OnApplicationBootstrap {
                         );
                       }
 
+                      const profPushChangeLines = compareTimetablesForProfessorPush(
+                        oldTimetableData,
+                        newTimetableData,
+                        profName,
+                      );
                       await this.pushService.notifyProfessor(
                         profRecord.id,
                         profName,
-                        changedDayIndices.map(i => newTimetableData.days[i]?.day).filter(Boolean),
+                        profPushChangeLines,
                       );
                     }
                   }

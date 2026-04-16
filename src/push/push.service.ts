@@ -85,9 +85,10 @@ export class PushService {
     async notifyClass(
         classId: number,
         className: string,
-        changedDays: string[],
-        changedClasses: { subject: string; group: number | null }[],
+        changeLines: string[],
     ): Promise<void> {
+        if (changeLines.length === 0) return;
+
         const subs = await this.prisma.pushSubscription.findMany({
             where: { mode: 'class', classId },
         });
@@ -96,43 +97,49 @@ export class PushService {
             const subjects = (sub.subjects as string[] | null) ?? [];
             const groups = (sub.groups as { name: string; group: number }[] | null) ?? [];
 
-            const isRelevant =
-                subjects.length === 0 ||
-                changedClasses.some((cls) => {
-                    const subjectMatch =
-                        subjects.length === 0 || subjects.includes(cls.subject.split(' ')[0]);
-                    if (!subjectMatch) return false;
-                    if (groups.length === 0) return true;
-                    const groupPref = groups.find((g) => g.name === cls.subject.split(' ')[0]);
-                    return !groupPref || groupPref.group === 0 || groupPref.group === cls.group;
+            for (const line of changeLines) {
+                const subjectCode = line.split(' ')[0];
+
+                const isRelevant =
+                    subjects.length === 0 ||
+                    (() => {
+                        const subjectMatch = subjects.includes(subjectCode);
+                        if (!subjectMatch) return false;
+                        if (groups.length === 0) return true;
+                        const groupPref = groups.find((g) => g.name === subjectCode);
+                        return !groupPref || groupPref.group === 0;
+                    })();
+
+                if (!isRelevant) continue;
+
+                await this.sendNotification(sub, {
+                    title: `Sprememba urnika - ${className}`,
+                    body: line,
+                    url: '/',
                 });
-
-            if (!isRelevant) continue;
-
-            await this.sendNotification(sub, {
-                title: `Sprememba urnika - ${className}`,
-                body: `Urnik za ${changedDays.join(', ')} se je spremenil.`,
-                url: '/',
-            });
+            }
         }
     }
 
     async notifyProfessor(
         professorId: number,
         professorName: string,
-        changedDays: string[],
+        changeLines: string[],
     ): Promise<void> {
+        if (changeLines.length === 0) return;
+
         const subs = await this.prisma.pushSubscription.findMany({
             where: { mode: 'professor', professorId },
         });
 
         for (const sub of subs) {
-            const dayStr = changedDays.length === 1 ? changedDays[0] : changedDays.join(', ');
-            await this.sendNotification(sub, {
-                title: `Sprememba urnika – ${professorName}`,
-                body: `Urnik za ${dayStr} se je spremenil.`,
-                url: '/',
-            });
+            for (const line of changeLines) {
+                await this.sendNotification(sub, {
+                    title: `Sprememba urnika – ${professorName}`,
+                    body: line,
+                    url: '/',
+                });
+            }
         }
     }
 
