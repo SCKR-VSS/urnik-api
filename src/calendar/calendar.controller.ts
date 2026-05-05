@@ -81,7 +81,9 @@ export class CalendarController {
         )
       : undefined;
 
-    const feedUrl = `${req.protocol}://${req.get('host')}${req.path}`;
+    const forwardedProto = req.get('x-forwarded-proto');
+    const protocol = forwardedProto?.split(',')[0]?.trim() || req.protocol;
+    const feedUrl = `${protocol}://${req.get('host')}${req.originalUrl}`;
 
     const result = await this.calendarService.createFeed(classId, feedUrl, subjects, groups);
 

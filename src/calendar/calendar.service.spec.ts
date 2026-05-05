@@ -37,6 +37,24 @@ function createTimetable(date: Date, classes: any[]) {
   };
 }
 
+function createTimetableWithWeekLabel(weekLabel: string, date: Date, classes: any[]) {
+  const dayLabel = `Ponedeljek ${String(date.getDate()).padStart(2, '0')}.${String(
+    date.getMonth() + 1,
+  ).padStart(2, '0')}.`;
+
+  return {
+    data: JSON.stringify({
+      weekLabel,
+      days: [
+        {
+          day: dayLabel,
+          classes,
+        },
+      ],
+    }),
+  };
+}
+
 describe('CalendarService.createFeed', () => {
   let prisma: {
     class: { findUnique: jest.Mock };
@@ -75,6 +93,27 @@ describe('CalendarService.createFeed', () => {
     const payload = JSON.parse(result as string);
     expect(payload.events).toHaveLength(1);
     expect(payload.events[0].title).toBe('MAT');
+  });
+
+  it('parses week labels even when they contain extra text', async () => {
+    prisma.timetable.findMany.mockResolvedValue([
+      createTimetableWithWeekLabel('Teden 06.01.2025 - redni', new Date('2025-01-06T00:00:00.000Z'), [
+        {
+          subject: 'RPT',
+          teacher: 'Test Teacher',
+          group: 1,
+          slot: 1,
+          duration: 1,
+          classroom: '12',
+        },
+      ]),
+    ]);
+
+    const result = await service.createFeed('2', 'https://example.com/calendar/feed/2');
+    const payload = JSON.parse(result as string);
+
+    expect(payload.events).toHaveLength(1);
+    expect(payload.events[0].title).toBe('RPT');
   });
 
   it('falls back to the latest older weeks that still match filters', async () => {

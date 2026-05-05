@@ -11,6 +11,32 @@ const generateIcs: (title: string, events: ics.EventAttributes[], feedUrl?: stri
 export class CalendarService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private parseDateFromText(value?: string): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const parts = value.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (!parts) {
+      return null;
+    }
+
+    const day = parseInt(parts[1], 10);
+    const month = parseInt(parts[2], 10);
+    const year = parseInt(parts[3], 10);
+    const parsed = new Date(year, month - 1, day);
+
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+
+    return parsed;
+  }
+
   private filterDayClasses(
     days: any[],
     subjects?: string[],
@@ -146,10 +172,12 @@ export class CalendarService {
 
     const timetableData = JSON.parse(timeTable.data as string);
 
-    // Extract year from weekLabel (format: "dd.mm.yyyy")
-    const year = new Date(
-      timetableData.weekLabel.split('.').reverse().join('-'),
-    ).getFullYear();
+    const parsedWeekDate = this.parseDateFromText(timetableData.weekLabel);
+    const year = parsedWeekDate?.getFullYear();
+
+    if (!year) {
+      return { error: 'Invalid timetable week label' };
+    }
 
     // Get days to process - apply filtering if options provided
     let daysToProcess = timetableData.days;
@@ -278,15 +306,13 @@ export class CalendarService {
     const parsed: ParsedTimetable[] = [];
     for (const timetable of timetables) {
       const timetableData = JSON.parse(timetable.data as string);
-      const weekLabel: string = timetableData.weekLabel;
-      const wParts = weekLabel.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-      if (!wParts) continue;
-      const weekStart = new Date(
-        parseInt(wParts[3]),
-        parseInt(wParts[2]) - 1,
-        parseInt(wParts[1]),
-      );
-      parsed.push({ timetableData, weekStart, year: parseInt(wParts[3]) });
+      const weekStart = this.parseDateFromText(timetableData.weekLabel);
+      if (!weekStart) continue;
+      parsed.push({
+        timetableData,
+        weekStart,
+        year: weekStart.getFullYear(),
+      });
     }
 
     if (parsed.length === 0) {
