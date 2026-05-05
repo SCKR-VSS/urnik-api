@@ -16,7 +16,7 @@ export class CalendarService {
       return null;
     }
 
-    const parts = value.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    const parts = value.match(/(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})/);
     if (!parts) {
       return null;
     }
@@ -35,6 +35,12 @@ export class CalendarService {
     }
 
     return parsed;
+  }
+
+  private parseDayMonth(value?: string): { day: number; month: number } | null {
+    const m = value?.match(/(\d{1,2})\.\s*(\d{1,2})\.?/);
+    if (!m) return null;
+    return { day: parseInt(m[1], 10), month: parseInt(m[2], 10) };
   }
 
   private filterDayClasses(
@@ -106,11 +112,10 @@ export class CalendarService {
 
       for (const day of daysToProcess) {
         for (const cls of day.classes) {
-          const dateParts = day.day.match(/(\d{1,2})\.(\d{1,2})\.?/);
-          if (!dateParts) continue;
+          const parsedDay = this.parseDayMonth(day.day);
+          if (!parsedDay) continue;
 
-          const dayOfMonth = parseInt(dateParts[1], 10);
-          const month = parseInt(dateParts[2], 10);
+          const { day: dayOfMonth, month } = parsedDay;
 
           const startSlotTime = slots[cls.slot]?.split(' ')[0];
           const endSlotTime = slots[cls.slot + cls.duration - 1]?.split(' ')[1];
@@ -215,11 +220,10 @@ export class CalendarService {
 
     for (const day of daysToProcess) {
       for (const cls of day.classes) {
-        const dateParts = day.day.match(/(\d{1,2})\.(\d{1,2})\.?/);
-        if (!dateParts) continue;
+        const parsedDay = this.parseDayMonth(day.day);
+        if (!parsedDay) continue;
 
-        const dayOfMonth = parseInt(dateParts[1], 10);
-        const month = parseInt(dateParts[2], 10);
+        const { day: dayOfMonth, month } = parsedDay;
 
         const startSlotTime = slots[cls.slot]?.split(' ')[0];
         const endSlotTime = slots[cls.slot + cls.duration - 1]?.split(' ')[1];
