@@ -55,6 +55,24 @@ function createTimetableWithWeekLabel(weekLabel: string, date: Date, classes: an
   };
 }
 
+function createUpstreamShapedTimetable(date: Date, classes: any[]) {
+  // Mirrors the real upstream Untis format: "29. 9. 2025" / "Ponedeljek 29. 9."
+  const weekLabel = `${date.getDate()}. ${date.getMonth() + 1}. ${date.getFullYear()}`;
+  const dayLabel = `Ponedeljek ${date.getDate()}. ${date.getMonth() + 1}.`;
+
+  return {
+    data: JSON.stringify({
+      weekLabel,
+      days: [
+        {
+          day: dayLabel,
+          classes,
+        },
+      ],
+    }),
+  };
+}
+
 describe('CalendarService.createFeed', () => {
   let prisma: {
     class: { findUnique: jest.Mock };
@@ -110,6 +128,31 @@ describe('CalendarService.createFeed', () => {
     ]);
 
     const result = await service.createFeed('2', 'https://example.com/calendar/feed/2');
+    const payload = JSON.parse(result as string);
+
+    expect(payload.events).toHaveLength(1);
+    expect(payload.events[0].title).toBe('RPT');
+  });
+
+  it('handles upstream Untis date format with whitespace ("29. 9. 2025")', async () => {
+    prisma.timetable.findMany.mockResolvedValue([
+      createUpstreamShapedTimetable(new Date(), [
+        {
+          subject: 'RPT',
+          teacher: 'Test Teacher',
+          group: 1,
+          slot: 1,
+          duration: 1,
+          classroom: '12',
+        },
+      ]),
+    ]);
+
+    const result = await service.createFeed(
+      '2',
+      'https://example.com/calendar/feed/2',
+      ['RPT'],
+    );
     const payload = JSON.parse(result as string);
 
     expect(payload.events).toHaveLength(1);
