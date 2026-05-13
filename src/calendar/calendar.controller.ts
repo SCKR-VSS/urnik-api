@@ -10,7 +10,7 @@ interface SkupineDto {
 
 @Controller('calendar')
 export class CalendarController {
-  constructor(private readonly calendarService: CalendarService) {}
+  constructor(private readonly calendarService: CalendarService) { }
 
   @Post(':week/:classId')
   async postTimetable(
@@ -21,32 +21,22 @@ export class CalendarController {
   ) {
     const weekNum = parseInt(week);
     const result = await this.calendarService.createCalendar(
-        weekNum,
-        classId,
-        options,
-      );
-  
-      if (typeof result === 'object' && result.error) {
-        res.status(HttpStatus.NOT_FOUND).json(result);
-        return;
-      }
-  
-      res.setHeader('Content-Type', 'text/calendar;charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename='urnik-${classId}-${week}.ics'`);
-  
-      res.send(result);
+      weekNum,
+      classId,
+      options,
+    );
+
+    if (typeof result === 'object' && result.error) {
+      res.status(HttpStatus.NOT_FOUND).json(result);
+      return;
+    }
+
+    res.setHeader('Content-Type', 'text/calendar;charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename='urnik-${classId}-${week}.ics'`);
+
+    res.send(result);
   }
 
-  /**
-   * Subscribable ICS feed for a class.
-   *
-   * Query params:
-   *   subjects  – comma-separated subject codes to include, e.g. MAT,FIZ
-   *   groups    – comma-separated SUBJECT:N pairs, e.g. MAT:1,FIZ:2
-   *
-   * Calendar apps can subscribe to this URL and receive a live,
-   * personalised feed of upcoming lessons.
-   */
   @Public()
   @Get('feed/:classId')
   async getFeed(
@@ -67,18 +57,18 @@ export class CalendarController {
 
     const groups: { [subject: string]: number } | undefined = groupsParam
       ? Object.fromEntries(
-          groupsParam
-            .split(',')
-            .map((s) => s.trim())
-            .filter((s) => s.includes(':'))
-            .map((s) => {
-              const idx = s.lastIndexOf(':');
-              const sub = s.slice(0, idx).trim();
-              const grp = s.slice(idx + 1).trim();
-              return [sub, parseInt(grp, 10)];
-            })
-            .filter(([, grp]) => !isNaN(grp as number)),
-        )
+        groupsParam
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s.includes(':'))
+          .map((s) => {
+            const idx = s.lastIndexOf(':');
+            const sub = s.slice(0, idx).trim();
+            const grp = s.slice(idx + 1).trim();
+            return [sub, parseInt(grp, 10)];
+          })
+          .filter(([, grp]) => !isNaN(grp as number)),
+      )
       : undefined;
 
     const forwardedProto = req.get('x-forwarded-proto');

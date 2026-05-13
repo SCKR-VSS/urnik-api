@@ -17,6 +17,7 @@ import {
 export class AppService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AppService.name);
   private parser = new TimetableParser();
+  private isTimetableCheckRunning = false;
 
   constructor(
     private prisma: PrismaService,
@@ -34,11 +35,25 @@ export class AppService implements OnApplicationBootstrap {
     this.logger.log(`NODE_ENV: ${process.env.NODE_ENV}`);
     if (process.env.NODE_ENV === 'development') return;
 
+    if (this.isTimetableCheckRunning) {
+      this.logger.warn('Timetable check already in progress, skipping this run.');
+      return;
+    }
+    this.isTimetableCheckRunning = true;
+    try {
+      await this.runTimetableCheck();
+    } finally {
+      this.isTimetableCheckRunning = false;
+    }
+  }
+
+  private async runTimetableCheck() {
+
     const htm = await fetch(
       'https://sckr.si/vss/urniki/frames/navbar.htm',
     ).then((res) => res.text());
 
-    const availableWeeks = this.parser.getWeeks(htm);
+    const { weeks: availableWeeks, teachers: professors, classes: fetchedClasses } = this.parser.parseNavbar(htm);
 
     const weeksInDb = await this.prisma.week.findMany();
 
@@ -63,8 +78,6 @@ export class AppService implements OnApplicationBootstrap {
       }
     }
 
-    const professors = this.parser.getTeachers(htm);
-
     for (const professor of professors) {
       const teacherExists = await this.prisma.professor.findFirst({
         where: {
@@ -82,8 +95,6 @@ export class AppService implements OnApplicationBootstrap {
         this.logger.log(`Added new professor to database: ${professor}`);
       }
     }
-
-    const fetchedClasses = this.parser.getClasses(htm);
 
     const classesInDb = await this.prisma.class.findMany();
 
@@ -175,6 +186,7 @@ export class AppService implements OnApplicationBootstrap {
             }
           } catch (error) {
             this.logger.error(
+              // @ts-ignore
               `Failed to fetch/store timetable for class ${classItem.name} (ID: ${classItem.id}) for week ${week.id}: ${error.message}`,
             );
           }
@@ -407,6 +419,7 @@ export class AppService implements OnApplicationBootstrap {
             }
           } catch (error) {
             this.logger.error(
+              // @ts-ignore
               `Failed to check/update timetable for class ${classItem.name} (ID: ${classItem.id}) for week ${week.id}: ${error.message}`,
             );
           }

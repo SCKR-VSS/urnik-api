@@ -39,300 +39,379 @@ interface GridCellRef {
 }
 
 export class TimetableParser {
-  public getTeachers(html: string): string[] {
+  public parseNavbar(html: string): {
+    weeks: { id: number; label: string }[];
+    teachers: string[];
+    classes: { id: number; name: string }[];
+  } {
     const dom = new JSDOM(html);
     const { document } = dom.window;
+    try {
+      const weeks: { id: number; label: string }[] = [];
+      const teachers: string[] = [];
+      const classes: { id: number; name: string }[] = [];
 
-    const scripts = Array.from(document.querySelectorAll('script')) as any[];
-    const teachers: string[] = [];
-
-    const teacherRegex = /var teachers = (\[.*?\]);/s;
-
-    for (const script of scripts) {
-      const scriptContent = script.textContent;
-      if (scriptContent) {
-        const match = scriptContent.match(teacherRegex);
-
-        if (match && match[1]) {
-          try {
-            const teacherArray = JSON.parse(match[1]);
-            if (Array.isArray(teacherArray)) {
-              teachers.push(...teacherArray);
-              break;
-            }
-          } catch (e) {
-            console.error('Failed to parse teachers array:', e);
+      const weekSelect = document.querySelector<HTMLSelectElement>('select[name="week"]');
+      if (weekSelect) {
+        const options = Array.from(weekSelect.querySelectorAll('option')) as HTMLOptionElement[];
+        for (const option of options) {
+          const id = parseInt(option.value, 10);
+          const label = option.textContent?.trim() || '';
+          if (!isNaN(id)) {
+            weeks.push({ id, label });
           }
         }
       }
-    }
 
-    return teachers;
+      const scripts = Array.from(document.querySelectorAll('script')) as any[];
+      const teacherRegex = /var teachers = (\[.*?\]);/s;
+      const classRegex = /var classes = (\[.*?\]);/s;
+
+      for (const script of scripts) {
+        const scriptContent = script.textContent;
+        if (!scriptContent) continue;
+
+        if (teachers.length === 0) {
+          const match = scriptContent.match(teacherRegex);
+          if (match && match[1]) {
+            try {
+              const teacherArray = JSON.parse(match[1]);
+              if (Array.isArray(teacherArray)) teachers.push(...teacherArray);
+            } catch (e) {
+              console.error('Failed to parse teachers array:', e);
+            }
+          }
+        }
+
+        if (classes.length === 0) {
+          const match = scriptContent.match(classRegex);
+          if (match && match[1]) {
+            try {
+              const classArray = JSON.parse(match[1]);
+              if (Array.isArray(classArray)) {
+                classArray.forEach((className: string, index: number) => {
+                  classes.push({ id: index + 1, name: className });
+                });
+              }
+            } catch (e) {
+              console.error('Failed to parse classes array:', e);
+            }
+          }
+        }
+      }
+
+      return { weeks, teachers, classes };
+    } finally {
+      dom.window.close();
+    }
+  }
+
+  public getTeachers(html: string): string[] {
+    const dom = new JSDOM(html);
+    const { document } = dom.window;
+    try {
+      const scripts = Array.from(document.querySelectorAll('script')) as any[];
+      const teachers: string[] = [];
+
+      const teacherRegex = /var teachers = (\[.*?\]);/s;
+
+      for (const script of scripts) {
+        const scriptContent = script.textContent;
+        if (scriptContent) {
+          const match = scriptContent.match(teacherRegex);
+
+          if (match && match[1]) {
+            try {
+              const teacherArray = JSON.parse(match[1]);
+              if (Array.isArray(teacherArray)) {
+                teachers.push(...teacherArray);
+                break;
+              }
+            } catch (e) {
+              console.error('Failed to parse teachers array:', e);
+            }
+          }
+        }
+      }
+
+      return teachers;
+    } finally {
+      dom.window.close();
+    }
   }
 
   public getClasses(html: string): { id: number; name: string }[] {
     const dom = new JSDOM(html);
     const { document } = dom.window;
+    try {
+      const scripts = Array.from(document.querySelectorAll('script')) as any[];
+      const classes: { id: number; name: string }[] = [];
 
-    const scripts = Array.from(document.querySelectorAll('script')) as any[];
-    const classes: { id: number; name: string }[] = [];
+      const classRegex = /var classes = (\[.*?\]);/s;
 
-    const classRegex = /var classes = (\[.*?\]);/s;
+      for (const script of scripts) {
+        const scriptContent = script.textContent;
+        if (scriptContent) {
+          const match = scriptContent.match(classRegex);
 
-    for (const script of scripts) {
-      const scriptContent = script.textContent;
-      if (scriptContent) {
-        const match = scriptContent.match(classRegex);
-
-        if (match && match[1]) {
-          try {
-            const classArray = JSON.parse(match[1]);
-            if (Array.isArray(classArray)) {
-              classArray.forEach((className: string, index: number) => {
-                classes.push({ id: index + 1, name: className });
-              });
-              break;
+          if (match && match[1]) {
+            try {
+              const classArray = JSON.parse(match[1]);
+              if (Array.isArray(classArray)) {
+                classArray.forEach((className: string, index: number) => {
+                  classes.push({ id: index + 1, name: className });
+                });
+                break;
+              }
+            } catch (e) {
+              console.error('Failed to parse classes array:', e);
             }
-          } catch (e) {
-            console.error('Failed to parse classes array:', e);
           }
         }
       }
-    }
 
-    return classes;
+      return classes;
+    } finally {
+      dom.window.close();
+    }
   }
 
   public getWeeks(html: string): { id: number; label: string }[] {
     const dom = new JSDOM(html);
     const { document } = dom.window;
+    try {
+      const weekSelect = document.querySelector<HTMLSelectElement>(
+        'select[name="week"]',
+      );
+      const weeks: { id: number; label: string }[] = [];
 
-    const weekSelect = document.querySelector<HTMLSelectElement>(
-      'select[name="week"]',
-    );
-    const weeks: { id: number; label: string }[] = [];
-
-    if (weekSelect) {
-      const options = Array.from(
-        weekSelect.querySelectorAll('option'),
-      ) as HTMLOptionElement[];
-      for (const option of options) {
-        const id = parseInt(option.value, 10);
-        const label = option.textContent?.trim() || '';
-        if (!isNaN(id)) {
-          weeks.push({ id, label });
+      if (weekSelect) {
+        const options = Array.from(
+          weekSelect.querySelectorAll('option'),
+        ) as HTMLOptionElement[];
+        for (const option of options) {
+          const id = parseInt(option.value, 10);
+          const label = option.textContent?.trim() || '';
+          if (!isNaN(id)) {
+            weeks.push({ id, label });
+          }
         }
       }
-    }
 
-    return weeks;
+      return weeks;
+    } finally {
+      dom.window.close();
+    }
   }
 
   public parse(html: string, weekLabel: string): TimetableResult {
     const dom = new JSDOM(html);
     const { document } = dom.window;
+    try {
+      const result: TimetableResult = {
+        className: this.extractClassName(document) || '',
+        weekLabel: weekLabel,
+        days: [],
+      };
 
-    const result: TimetableResult = {
-      className: this.extractClassName(document) || '',
-      weekLabel: weekLabel,
-      days: [],
-    };
+      const table = document.querySelector<HTMLTableElement>('table[border="3"]');
+      if (!table) return result;
 
-    const table = document.querySelector<HTMLTableElement>('table[border="3"]');
-    if (!table) return result;
+      const rows = Array.from(table.rows);
 
-    const rows = Array.from(table.rows);
+      const grid: (GridCellRef | undefined)[][] = [];
+      const MAX_COLS = 34;
 
-    const grid: (GridCellRef | undefined)[][] = [];
-    const MAX_COLS = 34;
+      const dayClassCellsByColspan = new Map<string, Map<number, number[]>>();
 
-    const dayClassCellsByColspan = new Map<string, Map<number, number[]>>();
+      const resolveStartColumn = (
+        dayName: string,
+        span: number,
+        desiredPosition: number,
+        dayStartRow: number,
+        rowIndex: number,
+      ): number | null => {
+        const candidates: number[] = [];
 
-    const resolveStartColumn = (
-      dayName: string,
-      span: number,
-      desiredPosition: number,
-      dayStartRow: number,
-      rowIndex: number,
-    ): number | null => {
-      const candidates: number[] = [];
-
-      const dayColspanMap = dayClassCellsByColspan.get(dayName);
-      if (dayColspanMap) {
-        const stored = dayColspanMap.get(span);
-        if (stored?.length) {
-          candidates.push(...stored);
-        }
-      }
-
-      for (let prev = rowIndex - 1; prev >= dayStartRow && prev >= 0; prev--) {
-        const prevRow = grid[prev];
-        if (!prevRow) continue;
-        for (let col = 1; col < MAX_COLS; col++) {
-          const ref = prevRow[col];
-          if (ref && ref.colspan === span) {
-            candidates.push(ref.columnPosition);
+        const dayColspanMap = dayClassCellsByColspan.get(dayName);
+        if (dayColspanMap) {
+          const stored = dayColspanMap.get(span);
+          if (stored?.length) {
+            candidates.push(...stored);
           }
         }
-      }
 
-      if (!candidates.length) return null;
-
-      const uniqueSorted = Array.from(new Set(candidates)).sort(
-        (a, b) => a - b,
-      );
-
-      const currentRow = grid[rowIndex] || [];
-      const availableCandidates = uniqueSorted.filter((pos) => {
-        for (let c = 0; c < span; c++) {
-          if (currentRow[pos + c] !== undefined) {
-            return false;
+        for (let prev = rowIndex - 1; prev >= dayStartRow && prev >= 0; prev--) {
+          const prevRow = grid[prev];
+          if (!prevRow) continue;
+          for (let col = 1; col < MAX_COLS; col++) {
+            const ref = prevRow[col];
+            if (ref && ref.colspan === span) {
+              candidates.push(ref.columnPosition);
+            }
           }
         }
-        return true;
-      });
 
-      if (!availableCandidates.length) return null;
+        if (!candidates.length) return null;
 
-      const target = availableCandidates.find((pos) => pos >= desiredPosition);
-      return target !== undefined
-        ? target
-        : availableCandidates[availableCandidates.length - 1];
-    };
+        const uniqueSorted = Array.from(new Set(candidates)).sort(
+          (a, b) => a - b,
+        );
 
-    let currentDay: string | null = null;
-    let currentDayStartRow = -1;
-    const dayData = new Map<string, DaySchedule>();
-
-    rows.forEach((row: any, rowIdx) => {
-      const cells = Array.from(row.children).filter(
-        (el: any): el is HTMLTableCellElement => el.tagName === 'TD',
-      );
-      if (cells.length === 0) return;
-
-      if (!grid[rowIdx]) grid[rowIdx] = [];
-
-      const dayCell = cells.find((cell) => this.isDayCell(cell));
-      if (dayCell) {
-        const boldFont = dayCell.querySelector('font[size="4"] b');
-        const dayName = boldFont?.textContent?.trim() ?? '';
-
-        const noteCell = cells.find((c) => {
-          const font = c.querySelector('font[size="3"]');
-          return font?.textContent?.match(/Pred začet|šol\.leta/);
+        const currentRow = grid[rowIndex] || [];
+        const availableCandidates = uniqueSorted.filter((pos) => {
+          for (let c = 0; c < span; c++) {
+            if (currentRow[pos + c] !== undefined) {
+              return false;
+            }
+          }
+          return true;
         });
 
-        if (!dayData.has(dayName) && dayName) {
-          if (noteCell) {
-            const font = noteCell.querySelector('font[size="3"]');
-            dayData.set(dayName, {
-              day: dayName,
-              classes: [],
-              note: font?.textContent?.trim() ?? null,
-            });
-            currentDay = null;
-          } else {
-            currentDay = dayName;
-            currentDayStartRow = rowIdx;
-            dayClassCellsByColspan.set(dayName, new Map());
-            dayData.set(dayName, { day: dayName, classes: [], note: null });
-          }
-        }
-      }
+        if (!availableCandidates.length) return null;
 
-      if (!currentDay) return;
+        const target = availableCandidates.find((pos) => pos >= desiredPosition);
+        return target !== undefined
+          ? target
+          : availableCandidates[availableCandidates.length - 1];
+      };
 
-      let columnPosition = 0;
-      for (const cell of cells) {
-        if (!grid[rowIdx]) {
-          grid[rowIdx] = [];
-        }
+      let currentDay: string | null = null;
+      let currentDayStartRow = -1;
+      const dayData = new Map<string, DaySchedule>();
 
-        while (
-          grid[rowIdx][columnPosition] !== undefined &&
-          columnPosition < MAX_COLS
-        ) {
-          columnPosition++;
-        }
-
-        const colspan = parseInt(cell.getAttribute('colspan') || '1');
-        const rowspan = parseInt(cell.getAttribute('rowspan') || '1');
-
-        let cellStartColumn = columnPosition;
-
-        const isClassCell =
-          cell.getAttribute('bgcolor') && cell.querySelector('table');
-
-        if (isClassCell && currentDay && cellStartColumn === 0) {
-          const fallbackColumn = resolveStartColumn(
-            currentDay,
-            colspan,
-            columnPosition,
-            currentDayStartRow,
-            rowIdx,
-          );
-          if (typeof fallbackColumn === 'number' && fallbackColumn >= 0) {
-            cellStartColumn = fallbackColumn;
-          }
-        }
-
-        if (rowIdx === currentDayStartRow && currentDay && isClassCell) {
-          const dayColspanMap = dayClassCellsByColspan.get(currentDay);
-          if (dayColspanMap) {
-            let stored = dayColspanMap.get(colspan);
-            if (!stored) {
-              stored = [];
-              dayColspanMap.set(colspan, stored);
-            }
-            if (!stored.includes(cellStartColumn)) {
-              stored.push(cellStartColumn);
-              stored.sort((a, b) => a - b);
-            }
-          }
-        }
-
-        for (let r = 0; r < rowspan; r++) {
-          if (!grid[rowIdx + r]) grid[rowIdx + r] = [];
-          for (let c = 0; c < colspan; c++) {
-            if (cellStartColumn + c < MAX_COLS) {
-              grid[rowIdx + r][cellStartColumn + c] = {
-                cell,
-                rowIdx,
-                columnPosition: cellStartColumn,
-                colspan,
-                rowspan,
-              };
-            }
-          }
-        }
-
-        const classInfo = this.extractClassesFromCell(
-          cell,
-          currentDay,
-          cellStartColumn,
-          this.extractClassName(document),
+      rows.forEach((row: any, rowIdx) => {
+        const cells = Array.from(row.children).filter(
+          (el: any): el is HTMLTableCellElement => el.tagName === 'TD',
         );
-        if (classInfo) {
-          const daySchedule = dayData.get(currentDay);
-          if (daySchedule) {
-            daySchedule.classes.push(...classInfo);
+        if (cells.length === 0) return;
+
+        if (!grid[rowIdx]) grid[rowIdx] = [];
+
+        const dayCell = cells.find((cell) => this.isDayCell(cell));
+        if (dayCell) {
+          const boldFont = dayCell.querySelector('font[size="4"] b');
+          const dayName = boldFont?.textContent?.trim() ?? '';
+
+          const noteCell = cells.find((c) => {
+            const font = c.querySelector('font[size="3"]');
+            return font?.textContent?.match(/Pred začet|šol\.leta/);
+          });
+
+          if (!dayData.has(dayName) && dayName) {
+            if (noteCell) {
+              const font = noteCell.querySelector('font[size="3"]');
+              dayData.set(dayName, {
+                day: dayName,
+                classes: [],
+                note: font?.textContent?.trim() ?? null,
+              });
+              currentDay = null;
+            } else {
+              currentDay = dayName;
+              currentDayStartRow = rowIdx;
+              dayClassCellsByColspan.set(dayName, new Map());
+              dayData.set(dayName, { day: dayName, classes: [], note: null });
+            }
           }
         }
 
-        columnPosition = cellStartColumn + colspan;
-      }
-    });
+        if (!currentDay) return;
 
-    dayData.forEach((dayInfo) => {
-      if (dayInfo.note === null) {
-        dayInfo.classes.sort((a, b) => a.slot - b.slot);
-        result.days.push(dayInfo);
-      } else if (dayInfo.classes.length === 0 && dayInfo.note) {
-        result.days.push(dayInfo);
-      }
-    });
+        let columnPosition = 0;
+        for (const cell of cells) {
+          if (!grid[rowIdx]) {
+            grid[rowIdx] = [];
+          }
 
-    return result;
+          while (
+            grid[rowIdx][columnPosition] !== undefined &&
+            columnPosition < MAX_COLS
+          ) {
+            columnPosition++;
+          }
+
+          const colspan = parseInt(cell.getAttribute('colspan') || '1');
+          const rowspan = parseInt(cell.getAttribute('rowspan') || '1');
+
+          let cellStartColumn = columnPosition;
+
+          const isClassCell =
+            cell.getAttribute('bgcolor') && cell.querySelector('table');
+
+          if (isClassCell && currentDay && cellStartColumn === 0) {
+            const fallbackColumn = resolveStartColumn(
+              currentDay,
+              colspan,
+              columnPosition,
+              currentDayStartRow,
+              rowIdx,
+            );
+            if (typeof fallbackColumn === 'number' && fallbackColumn >= 0) {
+              cellStartColumn = fallbackColumn;
+            }
+          }
+
+          if (rowIdx === currentDayStartRow && currentDay && isClassCell) {
+            const dayColspanMap = dayClassCellsByColspan.get(currentDay);
+            if (dayColspanMap) {
+              let stored = dayColspanMap.get(colspan);
+              if (!stored) {
+                stored = [];
+                dayColspanMap.set(colspan, stored);
+              }
+              if (!stored.includes(cellStartColumn)) {
+                stored.push(cellStartColumn);
+                stored.sort((a, b) => a - b);
+              }
+            }
+          }
+
+          for (let r = 0; r < rowspan; r++) {
+            if (!grid[rowIdx + r]) grid[rowIdx + r] = [];
+            for (let c = 0; c < colspan; c++) {
+              if (cellStartColumn + c < MAX_COLS) {
+                grid[rowIdx + r][cellStartColumn + c] = {
+                  cell,
+                  rowIdx,
+                  columnPosition: cellStartColumn,
+                  colspan,
+                  rowspan,
+                };
+              }
+            }
+          }
+
+          const classInfo = this.extractClassesFromCell(
+            cell,
+            currentDay,
+            cellStartColumn,
+            this.extractClassName(document),
+          );
+          if (classInfo) {
+            const daySchedule = dayData.get(currentDay);
+            if (daySchedule) {
+              daySchedule.classes.push(...classInfo);
+            }
+          }
+
+          columnPosition = cellStartColumn + colspan;
+        }
+      });
+
+      dayData.forEach((dayInfo) => {
+        if (dayInfo.note === null) {
+          dayInfo.classes.sort((a, b) => a.slot - b.slot);
+          result.days.push(dayInfo);
+        } else if (dayInfo.classes.length === 0 && dayInfo.note) {
+          result.days.push(dayInfo);
+        }
+      });
+
+      return result;
+    } finally {
+      dom.window.close();
+    }
   }
 
   private extractClassName(doc: Document): string {

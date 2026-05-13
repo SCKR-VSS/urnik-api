@@ -1,14 +1,16 @@
 import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
 import { TimetableService } from './timetable.service';
 import { Response } from 'express';
+import { ApiKeyAccess } from 'src/auth/api-key-access.decorator';
 
 interface SkupineDto {
   [key: string]: number;
 }
 
+@ApiKeyAccess()
 @Controller('timetable')
 export class TimetableController {
-  constructor(private readonly timetableService: TimetableService) {}
+  constructor(private readonly timetableService: TimetableService) { }
 
   @Get(':week/:classId')
   getTimetable(@Param('week') week: string, @Param('classId') classId: string) {
@@ -56,6 +58,7 @@ export class TimetableController {
 
       res.end(pdfBuffer);
     } catch (error) {
+      // @ts-ignore
       res.status(404).send({ message: error.message });
     }
   }

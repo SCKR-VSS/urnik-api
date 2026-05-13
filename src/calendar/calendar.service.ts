@@ -9,7 +9,7 @@ const generateIcs: (title: string, events: ics.EventAttributes[], feedUrl?: stri
 
 @Injectable()
 export class CalendarService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   private parseDateFromText(value?: string): Date | null {
     if (!value) {
@@ -179,7 +179,6 @@ export class CalendarService {
       return { error: 'Invalid timetable week label' };
     }
 
-    // Get days to process - apply filtering if options provided
     let daysToProcess = timetableData.days;
 
     if (options?.groups || options?.subjects) {
@@ -225,11 +224,9 @@ export class CalendarService {
         const endSlotTime = slots[cls.slot + cls.duration - 1]?.split(' ')[1];
         if (!startSlotTime || !endSlotTime) continue;
 
-        // Parse time strings (format: "H:MM" or "HH:MM")
         const [startHour, startMinute] = startSlotTime.split(':').map(Number);
         const [endHour, endMinute] = endSlotTime.split(':').map(Number);
 
-        // Calculate duration in minutes
         const durationMinutes =
           (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
 
@@ -290,9 +287,6 @@ export class CalendarService {
       return { error: 'No timetables found for this class' };
     }
 
-    // Prefer current and upcoming weeks. If that window is empty, or filters
-    // remove every class from it, fall back to the latest older weeks that
-    // still contain matching classes so subscribed calendars never go blank.
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 7);
     cutoff.setHours(0, 0, 0, 0);

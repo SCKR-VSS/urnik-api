@@ -1,6 +1,8 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { OptionsService } from './options.service';
+import { ApiKeyAccess } from 'src/auth/api-key-access.decorator';
 
+@ApiKeyAccess()
 @Controller('options')
 export class OptionsController { 
     constructor(private readonly optionsService: OptionsService) {}
