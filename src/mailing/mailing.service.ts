@@ -3,14 +3,18 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { EntityManager } from '@mikro-orm/mysql';
 import * as nodemailer from 'nodemailer';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
+import { Mail } from 'src/database/entities/mail.entity';
+import { Profmail } from 'src/database/entities/profmail.entity';
+import { SchoolClass } from 'src/database/entities/school-class.entity';
+import { Professor } from 'src/database/entities/professor.entity';
 
 @Injectable()
 export class MailingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private em: EntityManager) {}
 
   async saveMail(
     email: string,
@@ -18,12 +22,7 @@ export class MailingService {
     subjects: string[],
     groups: { [key: string]: number },
   ) {
-    const existing = await this.prisma.mail.findFirst({
-      where: {
-        email,
-        classId: classId,
-      },
-    });
+    const existing = await this.em.findOne(Mail, { email, schoolClass: classId });
 
     if (existing) {
       throw new ForbiddenException(
@@ -36,29 +35,16 @@ export class MailingService {
       .update(email + classId)
       .digest('hex');
 
-    this.prisma.mail
-      .create({
-        data: {
-          email,
-          classId,
-          subjects,
-          groups,
-          hash: emailHash,
-        },
-      })
-      .then((save) => {
-        if (save.id) {
-          return 'Mail saved successfully';
-        } else {
-          throw new InternalServerErrorException();
-        }
-      });
-
-    const className = await this.prisma.class.findUnique({
-      where: {
-        id: classId,
-      },
+    const mail = this.em.create(Mail, {
+      email,
+      schoolClass: classId,
+      subjects,
+      groups,
+      hash: emailHash,
     });
+    await this.em.persist(mail).flush();
+
+    const className = await this.em.findOne(SchoolClass, { id: classId });
 
     const emailTemplate = fs.readFileSync(
       'src/mailing/mails/subscribed.html',
@@ -66,7 +52,7 @@ export class MailingService {
     );
     const subject = `Naročnina na spremembe urnika za razred ${className?.name} je potrjena`;
 
-    let finalHtml = emailTemplate
+    const finalHtml = emailTemplate
       .replace('{{class_name}}', className?.name || '')
       .replace(
         '{{unsubscribe_link}}',
@@ -79,12 +65,7 @@ export class MailingService {
   }
 
   async saveProfessorMail(email: string, profId: number) {
-    const existing = await this.prisma.profmail.findFirst({
-      where: {
-        email,
-        profId: profId,
-      },
-    });
+    const existing = await this.em.findOne(Profmail, { email, professor: profId });
 
     if (existing) {
       throw new ForbiddenException(
@@ -96,27 +77,15 @@ export class MailingService {
       .createHash('sha256')
       .update(email + profId)
       .digest('hex');
-    this.prisma.profmail
-      .create({
-        data: {
-          email,
-          profId,
-          hash: emailHash,
-        },
-      })
-      .then((save) => {
-        if (save.id) {
-          return 'Professor mail saved successfully';
-        } else {
-          throw new InternalServerErrorException();
-        }
-      });
 
-    const professor = await this.prisma.professor.findUnique({
-      where: {
-        id: profId,
-      },
+    const profmail = this.em.create(Profmail, {
+      email,
+      professor: profId,
+      hash: emailHash,
     });
+    await this.em.persist(profmail).flush();
+
+    const professor = await this.em.findOne(Professor, { id: profId });
 
     const emailTemplate = fs.readFileSync(
       'src/mailing/mails/prof_subscribed.html',
@@ -124,7 +93,7 @@ export class MailingService {
     );
     const subject = `Naročnina na spremembe urnika za profesorja ${professor?.name} je potrjena`;
 
-    let finalHtml = emailTemplate
+    const finalHtml = emailTemplate
       .replace('{{professor_name}}', professor?.name || '')
       .replace(
         '{{unsubscribe_link}}',
@@ -137,19 +106,11 @@ export class MailingService {
   }
 
   async removeMail(hash: string) {
-    const deleted = await this.prisma.mail.deleteMany({
-      where: {
-        hash,
-      },
-    });
+    const deleted = await this.em.nativeDelete(Mail, { hash });
 
-    if (deleted.count === 0) {
-      const profDeleted = await this.prisma.profmail.deleteMany({
-        where: {
-          hash,
-        },
-      });
-      if (profDeleted.count === 0) {
+    if (deleted === 0) {
+      const profDeleted = await this.em.nativeDelete(Profmail, { hash });
+      if (profDeleted === 0) {
         throw new ForbiddenException('Ni bilo mogoče najti vnosa za izbris.');
       }
       return 'Professor mail removed successfully';
@@ -158,11 +119,7 @@ export class MailingService {
   }
 
   async getEmailsByClass(classId: number) {
-    return this.prisma.mail.findMany({
-      where: {
-        classId,
-      },
-    });
+    return this.em.find(Mail, { schoolClass: classId });
   }
 
   async sendEmail(to: string, subject: string, html: string) {
@@ -192,10 +149,6 @@ export class MailingService {
   }
 
   async getEmailsByProfessor(professorId: number) {
-    return this.prisma.profmail.findMany({
-      where: {
-        profId: professorId,
-      },
-    });
+    return this.em.find(Profmail, { professor: professorId });
   }
 }

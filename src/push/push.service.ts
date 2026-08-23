@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as webpush from 'web-push';
 import * as crypto from 'crypto';
-import { PrismaService } from '../prisma/prisma.service';
+import { EntityManager } from '@mikro-orm/mysql';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '../prisma/generated/client';
+import { PushSubscription } from 'src/database/entities/push-subscription.entity';
 
 export interface PushFilters {
     mode: 'class' | 'professor';
@@ -28,14 +28,13 @@ export class PushService {
     private readonly logger = new Logger(PushService.name);
 
     constructor(
-        private readonly prisma: PrismaService,
+        private readonly em: EntityManager,
         private readonly configService: ConfigService,
     ) {
         const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
         const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
-        //const mailto = this.configService.get<string>('VAPID_MAILTO');
 
-        if (publicKey && privateKey /*&& mailto*/) {
+        if (publicKey && privateKey) {
             webpush.setVapidDetails(`mailto:nejc.zivic@vss.sckr.si`, publicKey, privateKey);
         } else {
             this.logger.warn(
@@ -51,36 +50,38 @@ export class PushService {
     async subscribe(sub: WebPushSubscription, filters: PushFilters): Promise<void> {
         const endpointHash = this.hashEndpoint(sub.endpoint);
 
-        await this.prisma.pushSubscription.upsert({
-            where: { endpointHash },
-            create: {
+        let subscription = await this.em.findOne(PushSubscription, { endpointHash });
+
+        if (subscription) {
+            subscription.p256dh = sub.keys.p256dh;
+            subscription.auth = sub.keys.auth;
+            subscription.mode = filters.mode;
+            subscription.classId = filters.classId ?? null;
+            subscription.professorId = filters.professorId ?? null;
+            subscription.subjects = filters.subjects ?? null;
+            subscription.groups = filters.groups ?? null;
+        } else {
+            subscription = this.em.create(PushSubscription, {
                 endpoint: sub.endpoint,
                 endpointHash,
                 p256dh: sub.keys.p256dh,
                 auth: sub.keys.auth,
                 mode: filters.mode,
-                classId: filters.classId ?? undefined,
-                professorId: filters.professorId ?? undefined,
-                subjects: filters.subjects ?? Prisma.DbNull,
-                groups: filters.groups ?? Prisma.DbNull,
-            },
-            update: {
-                p256dh: sub.keys.p256dh,
-                auth: sub.keys.auth,
-                mode: filters.mode,
-                classId: filters.classId ?? undefined,
-                professorId: filters.professorId ?? undefined,
-                subjects: filters.subjects ?? Prisma.DbNull,
-                groups: filters.groups ?? Prisma.DbNull,
-            },
-        });
+                classId: filters.classId ?? null,
+                professorId: filters.professorId ?? null,
+                subjects: filters.subjects ?? null,
+                groups: filters.groups ?? null,
+            });
+            this.em.persist(subscription);
+        }
+
+        await this.em.flush();
     }
 
     async unsubscribe(endpoint: string): Promise<void> {
         const endpointHash = this.hashEndpoint(endpoint);
-        await this.prisma.pushSubscription.deleteMany({ where: { endpointHash } });
+        await this.em.nativeDelete(PushSubscription, { endpointHash });
     }
-
 
     async notifyClass(
         classId: number,
@@ -89,9 +90,7 @@ export class PushService {
     ): Promise<void> {
         if (changeLines.length === 0) return;
 
-        const subs = await this.prisma.pushSubscription.findMany({
-            where: { mode: 'class', classId },
-        });
+        const subs = await this.em.find(PushSubscription, { mode: 'class', classId });
 
         for (const sub of subs) {
             const subjects = (sub.subjects as string[] | null) ?? [];
@@ -128,9 +127,7 @@ export class PushService {
     ): Promise<void> {
         if (changeLines.length === 0) return;
 
-        const subs = await this.prisma.pushSubscription.findMany({
-            where: { mode: 'professor', professorId },
-        });
+        const subs = await this.em.find(PushSubscription, { mode: 'professor', professorId });
 
         for (const sub of subs) {
             for (const line of changeLines) {
@@ -157,11 +154,8 @@ export class PushService {
             );
         } catch (err: any) {
             if (err.statusCode === 410 || err.statusCode === 404) {
-                // Subscription expired — remove it
                 this.logger.log(`Removing stale push subscription: ${sub.endpointHash}`);
-                await this.prisma.pushSubscription.deleteMany({
-                    where: { endpointHash: sub.endpointHash },
-                });
+                await this.em.nativeDelete(PushSubscription, { endpointHash: sub.endpointHash });
             } else {
                 this.logger.error(`Failed to send push notification: ${err.message}`);
             }

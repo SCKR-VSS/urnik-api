@@ -8,15 +8,33 @@ import { TimetableModule } from './timetable/timetable.module';
 import { ConfigModule } from '@nestjs/config';
 import { GroupsModule } from './groups/groups.module';
 import { ScheduleModule } from '@nestjs/schedule';
-import { PrismaModule } from './prisma/prisma.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { MailingModule } from './mailing/mailing.module';
 import { ProvisionModule } from './provision/provision.module';
 import { AdminModule } from './admin/admin.module';
 import { PushModule } from './push/push.module';
+import { MikroOrmModule } from '@mikro-orm/nestjs';
+import { defineConfig } from '@mikro-orm/mysql';
+import { GeneratedCacheAdapter } from '@mikro-orm/core';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const metadataCache = require('../temp/metadata.json');
+import { SchoolClass } from './database/entities/school-class.entity';
+import { Week } from './database/entities/week.entity';
+import { Timetable } from './database/entities/timetable.entity';
+import { Mail } from './database/entities/mail.entity';
+import { Professor } from './database/entities/professor.entity';
+import { ApiKey } from './database/entities/api-key.entity';
+import { PushSubscription } from './database/entities/push-subscription.entity';
+import { Profmail } from './database/entities/profmail.entity';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    MikroOrmModule.forRoot(defineConfig({
+      entities: [SchoolClass, Week, Timetable, Mail, Professor, ApiKey, PushSubscription, Profmail],
+      clientUrl: process.env.DATABASE_URL,
+      metadataCache: { enabled: true, adapter: GeneratedCacheAdapter, options: { data: metadataCache } },
+    })),
     AuthModule,
     OptionsModule,
     CacheModule.register({
@@ -24,13 +42,9 @@ import { PushModule } from './push/push.module';
       ttl: 10 * 60 * 1000
     }),
     TimetableModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
     GroupsModule,
     ScheduleModule.forRoot(),
     ProvisionModule,
-    PrismaModule,
     CalendarModule,
     MailingModule,
     AdminModule,

@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { PrismaService } from './prisma/prisma.service';
+import { MikroORM } from '@mikro-orm/core';
 import { TimetableParser } from './timetable/parseTimetable';
 import * as crypto from 'crypto';
 import { MailingService } from './mailing/mailing.service';
@@ -12,6 +12,10 @@ import {
   compareTimetablesForPush,
   compareTimetablesForProfessorPush,
 } from './functions/timetableCompare';
+import { Week } from './database/entities/week.entity';
+import { Professor } from './database/entities/professor.entity';
+import { SchoolClass } from './database/entities/school-class.entity';
+import { Timetable } from './database/entities/timetable.entity';
 
 @Injectable()
 export class AppService implements OnApplicationBootstrap {
@@ -20,7 +24,7 @@ export class AppService implements OnApplicationBootstrap {
   private isTimetableCheckRunning = false;
 
   constructor(
-    private prisma: PrismaService,
+    private readonly orm: MikroORM,
     private mailingService: MailingService,
     private pushService: PushService,
   ) { }
@@ -33,7 +37,7 @@ export class AppService implements OnApplicationBootstrap {
   @Cron('*/30 * * * *')
   async checkTimetable() {
     this.logger.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-    if (process.env.NODE_ENV === 'development') return;
+    //if (process.env.NODE_ENV === 'development') return;
 
     if (this.isTimetableCheckRunning) {
       this.logger.warn('Timetable check already in progress, skipping this run.');
@@ -48,6 +52,7 @@ export class AppService implements OnApplicationBootstrap {
   }
 
   private async runTimetableCheck() {
+    const em = this.orm.em.fork();
 
     const htm = await fetch(
       'https://sckr.si/vss/urniki/frames/navbar.htm',
@@ -55,83 +60,53 @@ export class AppService implements OnApplicationBootstrap {
 
     const { weeks: availableWeeks, teachers: professors, classes: fetchedClasses } = this.parser.parseNavbar(htm);
 
-    const weeksInDb = await this.prisma.week.findMany();
+    const weeksInDb = await em.find(Week, {});
 
     for (const week of availableWeeks) {
       const weekExists = weeksInDb.find((w) => w.id === week.id);
       if (!weekExists) {
-        await this.prisma.week.create({
-          data: {
-            id: week.id,
-            label: week.label,
-          },
-        });
+        const newWeek = em.create(Week, { id: week.id, label: week.label });
+        await em.persist(newWeek).flush();
       } else if (weekExists.label !== week.label) {
-        await this.prisma.week.update({
-          where: {
-            id: week.id,
-          },
-          data: {
-            label: week.label,
-          },
-        });
+        weekExists.label = week.label;
+        await em.flush();
       }
     }
 
     for (const professor of professors) {
-      const teacherExists = await this.prisma.professor.findFirst({
-        where: {
-          name: professor,
-        },
-      });
+      const teacherExists = await em.findOne(Professor, { name: professor });
 
       if (!teacherExists) {
-        await this.prisma.professor.create({
-          data: {
-            name: professor,
-          },
-        });
-
+        const newProfessor = em.create(Professor, { name: professor });
+        await em.persist(newProfessor).flush();
         this.logger.log(`Added new professor to database: ${professor}`);
       }
     }
 
-    const classesInDb = await this.prisma.class.findMany();
+    const classesInDb = await em.find(SchoolClass, {});
 
     for (const classItem of fetchedClasses) {
       const classExists = classesInDb.find((c) => c.id === classItem.id);
       if (!classExists) {
-        await this.prisma.class.create({
-          data: {
-            id: classItem.id,
-            name: classItem.name,
-          },
-        });
+        const newClass = em.create(SchoolClass, { id: classItem.id, name: classItem.name });
+        await em.persist(newClass).flush();
       } else if (classExists.name !== classItem.name) {
-        await this.prisma.class.update({
-          where: {
-            id: classItem.id,
-          },
-          data: {
-            name: classItem.name,
-          },
-        });
+        classExists.name = classItem.name;
+        await em.flush();
       }
     }
 
     this.logger.log('Checking for timetable updates...');
 
-    const weeks = await this.prisma.week.findMany();
+    const weeks = await em.find(Week, {});
 
-    const classes = await this.prisma.class.findMany();
+    const classes = await em.find(SchoolClass, {});
 
     for (const classItem of classes) {
       for (const week of weeks) {
-        const timetableExists = await this.prisma.timetable.findFirst({
-          where: {
-            classId: classItem.id,
-            weekId: week.id,
-          },
+        const timetableExists = await em.findOne(Timetable, {
+          schoolClass: classItem.id,
+          week: week.id,
         });
 
         if (!timetableExists) {
@@ -153,11 +128,9 @@ export class AppService implements OnApplicationBootstrap {
 
               const timetableData = this.parser.parse(html, week.label);
 
-              const parsedTimetable = JSON.stringify(timetableData);
-
               const hash = crypto.createHash('md5').update(html).digest('hex');
 
-              const professorDb = await this.prisma.professor.findMany();
+              const professorDb = await em.find(Professor, {});
 
               let professorIds: number[] = [];
 
@@ -171,14 +144,13 @@ export class AppService implements OnApplicationBootstrap {
                 }
               }
 
-              await this.prisma.timetable.create({
-                data: {
-                  classId: classItem.id,
-                  weekId: week.id,
-                  data: parsedTimetable.toString(),
-                  hash: hash,
-                },
+              const newTimetable = em.create(Timetable, {
+                schoolClass: classItem.id,
+                week: week.id,
+                data: timetableData,
+                hash: hash,
               });
+              await em.persist(newTimetable).flush();
 
               this.logger.log(
                 `Timetable stored for class ${classItem.name} (ID: ${classItem.id}) for week ${week.id}. With hash ${hash}`,
@@ -211,22 +183,12 @@ export class AppService implements OnApplicationBootstrap {
               const hash = crypto.createHash('md5').update(html).digest('hex');
 
               if (hash !== timetableExists.hash) {
+                const oldTimetableData = timetableExists.data;
                 const newTimetableData = this.parser.parse(html, week.label);
-                const newTimetableString = JSON.stringify(newTimetableData);
 
-                await this.prisma.timetable.update({
-                  where: {
-                    id: timetableExists.id,
-                  },
-                  data: {
-                    data: newTimetableString,
-                    hash: hash,
-                  },
-                });
-
-                const oldTimetableData = JSON.parse(
-                  timetableExists.data as string,
-                );
+                timetableExists.data = newTimetableData;
+                timetableExists.hash = hash;
+                await em.flush();
 
                 const changeDetailsHtml = compareTimetables(
                   oldTimetableData,
@@ -364,12 +326,8 @@ export class AppService implements OnApplicationBootstrap {
                       continue;
                     }
 
-                    const profRecord = await this.prisma.professor.findFirst({
-                      where: {
-                        name: {
-                          contains: profName,
-                        },
-                      },
+                    const profRecord = await em.findOne(Professor, {
+                      name: { $like: `%${profName}%` },
                     });
 
                     if (profRecord) {

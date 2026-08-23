@@ -7,10 +7,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
+import { MikroORM, raw } from '@mikro-orm/core';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from 'src/auth/public.decorator';
 import { API_KEY_ACCESS_KEY } from 'src/auth/api-key-access.decorator';
+import { ApiKey } from 'src/database/entities/api-key.entity';
 
 const RATE_LIMIT = 6;
 const RATE_WINDOW_MS = 1000;
@@ -21,9 +22,9 @@ export class AccessGuard implements CanActivate {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly prisma: PrismaService,
+    private readonly orm: MikroORM,
     private readonly reflector: Reflector,
-  ) { }
+  ) {}
 
   private checkRateLimit(key: string): void {
     const now = Date.now();
@@ -40,10 +41,6 @@ export class AccessGuard implements CanActivate {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    /*if (this.configService.get<string>('NODE_ENV') === 'development') {
-      return true;
-    }*/
-
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -82,9 +79,9 @@ export class AccessGuard implements CanActivate {
       throw new UnauthorizedException('API key access is not allowed for this endpoint.');
     }
 
-    const apiKey = await this.prisma.apiKey.findUnique({
-      where: { key: providedKey },
-    });
+    const em = this.orm.em.fork();
+
+    const apiKey = await em.findOne(ApiKey, { key: providedKey });
 
     if (!apiKey || apiKey.revoked) {
       throw new UnauthorizedException('Invalid API key.');
@@ -92,10 +89,9 @@ export class AccessGuard implements CanActivate {
 
     this.checkRateLimit(providedKey);
 
-    void this.prisma.apiKey.update({
-      where: { key: providedKey },
-      data: { usageCount: { increment: 1 } },
-    }).then().catch(() => { });
+    void em
+      .nativeUpdate(ApiKey, { key: providedKey }, { usageCount: raw('usage_count + 1') })
+      .catch(() => {});
 
     return true;
   }

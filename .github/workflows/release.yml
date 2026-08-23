@@ -27,35 +27,38 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Generate Prisma Client
-        run: npx prisma generate
-
-      - name: Generate SQL File
-        run: npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script -o bundle/generated.sql
-
       - name: Build NestJS
         run: pnpm build
 
-      - name: Install NCC
-        run: npm install -g @vercel/ncc
+      - name: Generate metadata cache
+        run: npx mikro-orm cache:generate --combined
 
-      - name: Move files
-        run: cp src/prisma/generated/libquery_engine-debian-openssl-1.0.x.so.node bundle
-
-      - name: Bundle with NCC
+      - name: Generate SQL migration file
         run: |
           mkdir -p bundle
-          ncc build dist/main.js -o bundle
+          cat > /tmp/gen-sql.js << 'EOF'
+          const { Migration20260823164321 } = require('./dist/src/database/migrations/Migration20260823164321.js');
+          const sqls = [];
+          const instance = Object.create(Migration20260823164321.prototype);
+          instance.addSql = (s) => sqls.push(s);
+          Migration20260823164321.prototype.up.call(instance);
+          require('fs').writeFileSync('bundle/generated.sql', sqls.join('\n'));
+          EOF
+          node /tmp/gen-sql.js
+
+      - name: Bundle with NCC
+        run: pnpm bundle
+
+      - name: Patch bundle for CJS compatibility
+        run: pnpm bundle:patch
 
       - name: Copy assets
-        run: |
-          cp -r assets bundle/assets
+        run: cp -r assets bundle/assets
 
       - name: Create zip file
         run: |
           cd bundle
           zip -r ../bundle.zip .
-          cd ..
 
       - name: Create release
         uses: softprops/action-gh-release@v2

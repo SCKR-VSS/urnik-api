@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { EntityManager } from '@mikro-orm/mysql';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
+import { SchoolClass } from 'src/database/entities/school-class.entity';
+import { Week } from 'src/database/entities/week.entity';
+import { Professor } from 'src/database/entities/professor.entity';
+import { Timetable } from 'src/database/entities/timetable.entity';
 
 export interface OptionsResponse {
   classes: any[];
@@ -10,7 +14,7 @@ export interface OptionsResponse {
 @Injectable()
 export class OptionsService {
   constructor(
-    private prisma: PrismaService,
+    private em: EntityManager,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -23,11 +27,11 @@ export class OptionsService {
       return cachedOptions;
     }
 
-    const classes = await this.prisma.class.findMany();
+    const classes = await this.em.find(SchoolClass, {});
 
     const weeks: { value: number; label: string; isCurrent: boolean }[] = [];
 
-    const weeksInDb = await this.prisma.week.findMany();
+    const weeksInDb = await this.em.find(Week, {});
 
     for (const week of weeksInDb) {
       const currentDate = new Date();
@@ -43,7 +47,7 @@ export class OptionsService {
       weeks.push({ value: week.id, label: week.label, isCurrent });
     }
 
-    const professors = await this.prisma.professor.findMany();
+    const professors = await this.em.find(Professor, {});
 
     const options = {
       classes,
@@ -65,7 +69,7 @@ export class OptionsService {
       return cachedOptions;
     }
 
-    const professors = await this.prisma.professor.findMany();
+    const professors = await this.em.find(Professor, {});
 
     await this.cacheManager.set(cacheKey, professors);
 
@@ -86,16 +90,12 @@ export class OptionsService {
       return [];
     }
 
-    const subjects = await this.prisma.timetable.findMany({
-      where: {
-        classId: classNum,
-      },
-    });
+    const timetables = await this.em.find(Timetable, { schoolClass: classNum });
 
     const subjectSet = new Set<string>();
 
-    subjects.forEach((entry) => {
-      const data = JSON.parse(entry.data as string);
+    timetables.forEach((entry) => {
+      const data = entry.data;
       data.days.forEach((day: any) => {
         day.classes.forEach((cls: any) => {
           subjectSet.add(cls.subject.split(" ")[0]);

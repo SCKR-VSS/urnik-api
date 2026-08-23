@@ -1,8 +1,6 @@
-import { NestFactory, Reflector } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { AccessGuard } from './auth/auth.guard';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from './prisma/prisma.service';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 
@@ -43,10 +41,6 @@ async function bootstrap() {
   app.use('/docs', apiReference({ content: document, theme: 'kepler' }));
 
   const configService = app.get(ConfigService);
-  const prismaService = app.get(PrismaService);
-  const reflector = app.get(Reflector);
-
-  app.useGlobalGuards(new AccessGuard(configService, prismaService, reflector));
 
   // uncomment if exposing locally
   //return await app.listen(3000, '0.0.0.0');

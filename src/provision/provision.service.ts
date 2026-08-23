@@ -1,19 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { EntityManager } from '@mikro-orm/mysql';
+import { ApiKey } from 'src/database/entities/api-key.entity';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class ProvisionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly em: EntityManager) {}
 
   async provisionApiKey(description?: string): Promise<{ apiKey: string }> {
     const key = crypto.randomBytes(32).toString('hex');
-    await this.prisma.apiKey.create({
-      data: {
-        key,
-        type: 1,
-      },
-    });
+    const apiKey = this.em.create(ApiKey, { key, type: 1 });
+    await this.em.persist(apiKey).flush();
     return { apiKey: key };
   }
 }

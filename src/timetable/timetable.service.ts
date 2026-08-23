@@ -1,17 +1,19 @@
 import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from '@nestjs/cache-manager';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { EntityManager } from '@mikro-orm/mysql';
 import * as crypto from 'crypto';
 import { jsPDF } from 'jspdf';
 import autoTable, { CellInput } from 'jspdf-autotable';
 import * as fs from 'fs';
 import slots from 'src/constants/slots';
+import { Timetable } from 'src/database/entities/timetable.entity';
+import { Professor } from 'src/database/entities/professor.entity';
 
 @Injectable()
 export class TimetableService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly em: EntityManager,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -45,15 +47,13 @@ export class TimetableService {
       return cachedData;
     }
 
-    const timeTable = await this.prisma.timetable.findFirst({
-      where: {
-        week: { id: week },
-        class: { id: classNum },
-      },
+    const timeTable = await this.em.findOne(Timetable, {
+      week: week,
+      schoolClass: classNum,
     });
 
     if (timeTable) {
-      const timetableData = JSON.parse(timeTable.data as string);
+      const timetableData = timeTable.data;
 
       if (!options || (!options.groups && !options.subjects)) {
         await this.cacheManager.set(key, timetableData);
@@ -119,25 +119,19 @@ export class TimetableService {
       return cachedData;
     }
 
-    const professor = await this.prisma.professor.findUnique({
-      where: { id: profNum },
-    });
+    const professor = await this.em.findOne(Professor, { id: profNum });
 
     if (!professor) {
       return { error: 'Professor not found' };
     }
 
-    const timetables = await this.prisma.timetable.findMany({
-      where: {
-        week: { id: week },
-      },
-    });
+    const timetables = await this.em.find(Timetable, { week: week });
 
     const name = professor.name;
 
     const professorTimetables = timetables
       .map((timetable) => {
-        const timetableData = JSON.parse(timetable.data as string);
+        const timetableData = timetable.data;
 
         const filteredDays = timetableData.days.map((day: any) => {
           const filteredClasses = day.classes.filter((cls: any) => {
@@ -190,9 +184,7 @@ export class TimetableService {
       );
     }
 
-    const professor = await this.prisma.professor.findUnique({
-      where: { id: parseInt(professorId, 10) },
-    });
+    const professor = await this.em.findOne(Professor, { id: parseInt(professorId, 10) });
 
     const allClasses = professorTimetables.flatMap((timetable) =>
       timetable.days.flatMap((day: any) =>

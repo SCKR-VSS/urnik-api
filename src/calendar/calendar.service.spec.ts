@@ -25,7 +25,7 @@ function createTimetable(date: Date, classes: any[]) {
   ).padStart(2, '0')}.`;
 
   return {
-    data: JSON.stringify({
+    data: {
       weekLabel,
       days: [
         {
@@ -33,7 +33,7 @@ function createTimetable(date: Date, classes: any[]) {
           classes,
         },
       ],
-    }),
+    },
   };
 }
 
@@ -43,7 +43,7 @@ function createTimetableWithWeekLabel(weekLabel: string, date: Date, classes: an
   ).padStart(2, '0')}.`;
 
   return {
-    data: JSON.stringify({
+    data: {
       weekLabel,
       days: [
         {
@@ -51,7 +51,7 @@ function createTimetableWithWeekLabel(weekLabel: string, date: Date, classes: an
           classes,
         },
       ],
-    }),
+    },
   };
 }
 
@@ -61,7 +61,7 @@ function createUpstreamShapedTimetable(date: Date, classes: any[]) {
   const dayLabel = `Ponedeljek ${date.getDate()}. ${date.getMonth() + 1}.`;
 
   return {
-    data: JSON.stringify({
+    data: {
       weekLabel,
       days: [
         {
@@ -69,28 +69,28 @@ function createUpstreamShapedTimetable(date: Date, classes: any[]) {
           classes,
         },
       ],
-    }),
+    },
   };
 }
 
 describe('CalendarService.createFeed', () => {
-  let prisma: {
-    class: { findUnique: jest.Mock };
-    timetable: { findMany: jest.Mock };
+  let em: {
+    findOne: jest.Mock;
+    find: jest.Mock;
   };
   let service: CalendarService;
 
   beforeEach(() => {
-    prisma = {
-      class: { findUnique: jest.fn().mockResolvedValue({ id: 2, name: 'RAI 2.l' }) },
-      timetable: { findMany: jest.fn() },
+    em = {
+      findOne: jest.fn().mockResolvedValue({ id: 2, name: 'RAI 2.l' }),
+      find: jest.fn(),
     };
-    service = new CalendarService(prisma as any);
+    service = new CalendarService(em as any);
     generateIcs.mockClear();
   });
 
   it('falls back to older weeks when no week passes the recent cutoff', async () => {
-    prisma.timetable.findMany.mockResolvedValue([
+    em.find.mockResolvedValue([
       createTimetable(new Date('2025-01-06T00:00:00.000Z'), [
         {
           subject: 'MAT',
@@ -114,7 +114,7 @@ describe('CalendarService.createFeed', () => {
   });
 
   it('parses week labels even when they contain extra text', async () => {
-    prisma.timetable.findMany.mockResolvedValue([
+    em.find.mockResolvedValue([
       createTimetableWithWeekLabel('Teden 06.01.2025 - redni', new Date('2025-01-06T00:00:00.000Z'), [
         {
           subject: 'RPT',
@@ -135,7 +135,7 @@ describe('CalendarService.createFeed', () => {
   });
 
   it('handles upstream Untis date format with whitespace ("29. 9. 2025")', async () => {
-    prisma.timetable.findMany.mockResolvedValue([
+    em.find.mockResolvedValue([
       createUpstreamShapedTimetable(new Date(), [
         {
           subject: 'RPT',
@@ -163,7 +163,7 @@ describe('CalendarService.createFeed', () => {
     const currentWeek = new Date();
     const oldMatchingWeek = new Date('2025-02-03T00:00:00.000Z');
 
-    prisma.timetable.findMany.mockResolvedValue([
+    em.find.mockResolvedValue([
       createTimetable(currentWeek, [
         {
           subject: 'BIO',
@@ -199,7 +199,7 @@ describe('CalendarService.createFeed', () => {
   });
 
   it('creates distinct stable uids for parallel lessons with different groups', async () => {
-    prisma.timetable.findMany.mockResolvedValue([
+    em.find.mockResolvedValue([
       createTimetable(new Date(), [
         {
           subject: 'MAT',

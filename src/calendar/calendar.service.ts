@@ -1,15 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { EntityManager } from '@mikro-orm/mysql';
 import { randomBytes, createHash } from 'crypto';
 import slots from 'src/constants/slots';
 import * as ics from 'ics';
+import { Timetable } from 'src/database/entities/timetable.entity';
+import { SchoolClass } from 'src/database/entities/school-class.entity';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const generateIcs: (title: string, events: ics.EventAttributes[], feedUrl?: string) => string = require('ics-service/generate-ics');
 
 @Injectable()
 export class CalendarService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly em: EntityManager) { }
 
   private parseDateFromText(value?: string): Date | null {
     if (!value) {
@@ -162,11 +164,9 @@ export class CalendarService {
       return { error: 'Invalid week or classId parameter' };
     }
 
-    const timeTable = await this.prisma.timetable.findFirst({
-      where: {
-        week: { id: week },
-        class: { id: classNum },
-      },
+    const timeTable = await this.em.findOne(Timetable, {
+      week: week,
+      schoolClass: classNum,
     });
 
     if (!timeTable) {
@@ -175,7 +175,7 @@ export class CalendarService {
       };
     }
 
-    const timetableData = JSON.parse(timeTable.data as string);
+    const timetableData = timeTable.data;
 
     const parsedWeekDate = this.parseDateFromText(timetableData.weekLabel);
     const year = parsedWeekDate?.getFullYear();
@@ -274,18 +274,13 @@ export class CalendarService {
       return { error: 'Invalid classId parameter' };
     }
 
-    const classRecord = await this.prisma.class.findUnique({
-      where: { id: classNum },
-    });
+    const classRecord = await this.em.findOne(SchoolClass, { id: classNum });
 
     if (!classRecord) {
       return { error: 'Class not found' };
     }
 
-    const timetables = await this.prisma.timetable.findMany({
-      where: { class: { id: classNum } },
-      include: { week: true },
-    });
+    const timetables = await this.em.find(Timetable, { schoolClass: classNum });
 
     if (!timetables.length) {
       return { error: 'No timetables found for this class' };
@@ -303,7 +298,7 @@ export class CalendarService {
 
     const parsed: ParsedTimetable[] = [];
     for (const timetable of timetables) {
-      const timetableData = JSON.parse(timetable.data as string);
+      const timetableData = timetable.data;
       const weekStart = this.parseDateFromText(timetableData.weekLabel);
       if (!weekStart) continue;
       parsed.push({
