@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "bundle": "ncc build dist/src/main.js -o bundle",
+    "bundle": "mkdir -p dist/temp && cp temp/metadata.json dist/temp/metadata.json && ncc build dist/src/main.js -o bundle",
     "bundle:patch": "node -e \"const fs=require('fs'),glob=require('fs').readdirSync('bundle').filter(f=>f.endsWith('.js'));let n=0;for(const f of glob){const fp='bundle/'+f,c=fs.readFileSync(fp,'utf-8'),p=c.replace(/import\\.meta\\.resolve\\(([^)]+)\\)/g,'require.resolve($1)');if(c!==p){fs.writeFileSync(fp,p);n++;console.log('Patched:',f)}}console.log(n,'file(s) patched');\"",
     "migrate": "mikro-orm migration:up",
     "migrate:create": "mikro-orm migration:create",
