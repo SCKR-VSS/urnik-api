@@ -38,18 +38,10 @@ jobs:
         env:
           DATABASE_URL: mysql://root:dummy@localhost:3306/dummy
 
-      - name: Generate SQL migration file
+      - name: Copy SQL migration file
         run: |
           mkdir -p bundle
-          cat > /tmp/gen-sql.js << 'EOF'
-          const { Migration20260823164321 } = require('./dist/src/database/migrations/Migration20260823164321.js');
-          const sqls = [];
-          const instance = Object.create(Migration20260823164321.prototype);
-          instance.addSql = (s) => sqls.push(s);
-          Migration20260823164321.prototype.up.call(instance);
-          require('fs').writeFileSync('bundle/generated.sql', sqls.join('\n'));
-          EOF
-          node /tmp/gen-sql.js
+          cp assets/generated.sql bundle/generated.sql
 
       - name: Bundle with NCC
         run: pnpm bundle
