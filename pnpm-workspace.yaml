@@ -1,2 +1,8 @@
 overrides:
   entities: ^6.0.0
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@scarf/scarf'
+  - '@swc/core'
+  - core-js
