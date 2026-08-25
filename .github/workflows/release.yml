@@ -35,6 +35,8 @@ jobs:
 
       - name: Generate metadata cache
         run: npx mikro-orm cache:generate --combined
+        env:
+          DATABASE_URL: mysql://root:dummy@localhost:3306/dummy
 
       - name: Generate SQL migration file
         run: |
