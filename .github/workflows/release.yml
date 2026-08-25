@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - mikro-orm
 
 jobs:
   build-and-release:
