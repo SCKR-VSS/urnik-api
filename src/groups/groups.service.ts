@@ -22,6 +22,11 @@ export class GroupsService {
       return { error: 'Invalid classId parameter' };
     }
 
+    const cached = await this.cacheManager.get(key);
+    if (cached) {
+      return cached;
+    }
+
     let weeks: Week[] = [];
 
     const options = await this.optionsService.getOptions();
@@ -32,7 +37,7 @@ export class GroupsService {
     const paddedNum = classNum.toString().padStart(5, '0');
 
     for (const week of weeks) {
-      const url = `https://sckr.si/vss/urniki/c/${week.value}/c${paddedNum}.htm`;
+      const url = `https://sckr.si/vss/urniki/c/${week.value.toString().padStart(2, '0')}/c${paddedNum}.htm`;
 
       try {
         const html = await (await fetch(url)).text();

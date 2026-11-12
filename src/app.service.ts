@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { MikroORM } from '@mikro-orm/core';
+import { MikroORM, RequestContext } from '@mikro-orm/core';
 import { TimetableParser } from './timetable/parseTimetable';
 import * as crypto from 'crypto';
 import { MailingService } from './mailing/mailing.service';
@@ -45,7 +45,10 @@ export class AppService implements OnApplicationBootstrap {
     }
     this.isTimetableCheckRunning = true;
     try {
-      await this.runTimetableCheck();
+      await RequestContext.create(this.orm.em, () => this.runTimetableCheck());
+    } catch (error) {
+      // @ts-ignore
+      this.logger.error(`Timetable check failed: ${error.message}`);
     } finally {
       this.isTimetableCheckRunning = false;
     }
@@ -338,11 +341,12 @@ export class AppService implements OnApplicationBootstrap {
                       const profSubject = `Posodobljen urnik za profesorja ${profName} - ${week.label}`;
 
                       for (const profMail of profEmails) {
+                        return;
                         let profHtml = emailTemplate
-                          .replace('{{change_details}}', changeDetailsHtml)
+                          .replace('{{change_details}}', profChangeDetailsHtml)
                           .replace(
                             '{{remove_mail}}',
-                            `${process.env.API_DOMAIN}/mailing/remove?email=${encodeURIComponent(profMail.hash)}&professorId=${profRecord.id}`,
+                            `${process.env.API_DOMAIN}/mailing/remove?email=${encodeURIComponent(profMail.hash)}&professorId=${profRecord!.id}`,
                           );
 
                         await this.mailingService.sendEmail(

@@ -17,7 +17,7 @@ import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { defineConfig } from '@mikro-orm/mysql';
 import { GeneratedCacheAdapter } from '@mikro-orm/core';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const metadataCache = require('../temp/metadata.json');
+const metadataCache = require('../../temp/metadata.json');
 import { SchoolClass } from './database/entities/school-class.entity';
 import { Week } from './database/entities/week.entity';
 import { Timetable } from './database/entities/timetable.entity';
