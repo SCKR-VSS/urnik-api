@@ -51,7 +51,7 @@ export class AccessGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    if (request.path === '/docs') return true;
+    if (request.path === '/docs' || request.path === '/mailing/remove') return true;
 
     const origin = request.headers.origin;
 

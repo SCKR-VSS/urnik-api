@@ -33,8 +33,14 @@ export class OptionsService {
 
     const weeksInDb = await this.em.find(Week, {});
 
+    const currentDate = new Date();
+    const weekday = currentDate.getDay();
+    if (weekday === 6 || weekday === 0) {
+      currentDate.setDate(currentDate.getDate() + (weekday === 6 ? 2 : 1));
+      currentDate.setHours(0, 0, 0, 0);
+    }
+
     for (const week of weeksInDb) {
-      const currentDate = new Date();
       const parts = week.label.split('.').map((part) => parseInt(part, 10));
       const weekStartDate = new Date(parts[2], parts[1] - 1, parts[0]);
 

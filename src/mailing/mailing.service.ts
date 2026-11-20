@@ -6,11 +6,16 @@ import {
 import { EntityManager } from '@mikro-orm/mysql';
 import * as nodemailer from 'nodemailer';
 import * as crypto from 'crypto';
-import * as fs from 'fs';
 import { Mail } from 'src/database/entities/mail.entity';
 import { Profmail } from 'src/database/entities/profmail.entity';
 import { SchoolClass } from 'src/database/entities/school-class.entity';
 import { Professor } from 'src/database/entities/professor.entity';
+import { APP_NAME, escapeHtml, renderMail, unsubscribeLink } from './layout';
+
+const confirmContent = (target: string) =>
+  `<p style="margin:0 0 16px 0;">Pozdravljeni,</p>
+<p style="margin:0 0 16px 0;">uspešno ste se prijavili na obvestila o spremembah urnika za ${target}. Ob vsaki spremembi vam bomo poslali e-pošto s podrobnostmi.</p>
+<p style="margin:0;">Če se niste prijavili vi, se lahko odjavite s povezavo na dnu sporočila.</p>`;
 
 @Injectable()
 export class MailingService {
@@ -46,18 +51,12 @@ export class MailingService {
 
     const className = await this.em.findOne(SchoolClass, { id: classId });
 
-    const emailTemplate = fs.readFileSync(
-      'src/mailing/mails/subscribed.html',
-      'utf-8',
-    );
-    const subject = `Naročnina na spremembe urnika za razred ${className?.name} je potrjena`;
-
-    const finalHtml = emailTemplate
-      .replace('{{class_name}}', className?.name || '')
-      .replace(
-        '{{unsubscribe_link}}',
-        `${process.env.API_DOMAIN}/mailing/remove?email=${encodeURIComponent(emailHash)}`,
-      );
+    const subject = `Prijava na obvestila za ${className?.name} potrjena`;
+    const finalHtml = renderMail({
+      title: 'Prijava potrjena',
+      content: confirmContent(`razred <strong>${escapeHtml(className?.name || '')}</strong>`),
+      unsubscribeLink: unsubscribeLink(emailHash),
+    });
 
     await this.sendEmail(email, subject, finalHtml);
 
@@ -69,7 +68,7 @@ export class MailingService {
 
     if (existing) {
       throw new ForbiddenException(
-        'Ta poštni naslov je že uporabljen za tega profesorja.',
+        'Ta poštni naslov je že uporabljen za tega predavatelja.',
       );
     }
 
@@ -87,18 +86,12 @@ export class MailingService {
 
     const professor = await this.em.findOne(Professor, { id: profId });
 
-    const emailTemplate = fs.readFileSync(
-      'src/mailing/mails/prof_subscribed.html',
-      'utf-8',
-    );
-    const subject = `Naročnina na spremembe urnika za profesorja ${professor?.name} je potrjena`;
-
-    const finalHtml = emailTemplate
-      .replace('{{professor_name}}', professor?.name || '')
-      .replace(
-        '{{unsubscribe_link}}',
-        `${process.env.API_DOMAIN}/mailing/remove?email=${encodeURIComponent(emailHash)}`,
-      );
+    const subject = `Prijava na obvestila za predavatelja ${professor?.name} potrjena`;
+    const finalHtml = renderMail({
+      title: 'Prijava potrjena',
+      content: confirmContent(`predavatelja <strong>${escapeHtml(professor?.name || '')}</strong>`),
+      unsubscribeLink: unsubscribeLink(emailHash),
+    });
 
     await this.sendEmail(email, subject, finalHtml);
 
@@ -135,7 +128,7 @@ export class MailingService {
     });
 
     const info = await transporter.sendMail({
-      from: 'VSŠ Kranj Urnik',
+      from: `"${APP_NAME}" <${process.env.MAIL_USER}>`,
       to: to,
       subject: subject,
       html: html,

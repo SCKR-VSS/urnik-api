@@ -17,7 +17,7 @@ async function bootstrap() {
   });
 
   const config = new DocumentBuilder()
-    .setTitle('VSŠ Kranj Urnik API')
+    .setTitle('Urnik VSŠ ŠC Kranj API')
     .setDescription(
       'API za VSŠ Kranj urnik API\n\nČe želite uporabljati API se obrnite na trenutnega skrbnika: nejc.zivic@vss.sckr.si',
     )

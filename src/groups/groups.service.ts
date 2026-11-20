@@ -65,7 +65,7 @@ export class GroupsService {
             }
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(`Error fetching week ${week.value}:`, err.message);
       }
     }

@@ -11,7 +11,7 @@ export function compareTimetablesForProfessor(
   oldData.days.forEach((day: any, dayIndex: number) => {
     day.classes.forEach((cls: any) => {
       const key = `${dayIndex}-${cls.slot}-${cls.subject}`;
-      oldClasses.set(key, cls);
+      oldClasses.set(key, { ...cls, dayName: day.day });
     });
   });
 
@@ -29,7 +29,7 @@ export function compareTimetablesForProfessor(
           const modifications: string[] = [];
           if (oldCls.teacher !== cls.teacher) {
             modifications.push(
-              `profesor iz <strong>${oldCls.teacher || 'N/A'}</strong> v <strong>${cls.teacher || 'N/A'}</strong>`,
+              `predavatelj iz <strong>${oldCls.teacher || 'N/A'}</strong> v <strong>${cls.teacher || 'N/A'}</strong>`,
             );
           }
           if (oldCls.classroom !== cls.classroom) {
@@ -98,7 +98,7 @@ export function compareTimetablesForPush(oldData: any, newData: any): string[] {
       if (oldCls) {
         const modifications: string[] = [];
         if (oldCls.teacher !== cls.teacher) {
-          modifications.push(`prof. ${oldCls.teacher || 'N/A'} → ${cls.teacher || 'N/A'}`);
+          modifications.push(`predavatelj ${oldCls.teacher || 'N/A'} → ${cls.teacher || 'N/A'}`);
         }
         if (oldCls.classroom !== cls.classroom) {
           modifications.push(`učilnica ${oldCls.classroom || 'N/A'} → ${cls.classroom || 'N/A'}`);
@@ -150,7 +150,7 @@ export function compareTimetablesForProfessorPush(oldData: any, newData: any, pr
         if (isRelevant) {
           const modifications: string[] = [];
           if (oldCls.teacher !== cls.teacher) {
-            modifications.push(`prof. ${oldCls.teacher || 'N/A'} → ${cls.teacher || 'N/A'}`);
+            modifications.push(`predavatelj ${oldCls.teacher || 'N/A'} → ${cls.teacher || 'N/A'}`);
           }
           if (oldCls.classroom !== cls.classroom) {
             modifications.push(`učilnica ${oldCls.classroom || 'N/A'} → ${cls.classroom || 'N/A'}`);
@@ -187,7 +187,7 @@ export function compareTimetables(oldData: any, newData: any): string {
   oldData.days.forEach((day: any, dayIndex: number) => {
     day.classes.forEach((cls: any) => {
       const key = `${dayIndex}-${cls.slot}-${cls.subject}`;
-      oldClasses.set(key, cls);
+      oldClasses.set(key, { ...cls, dayName: day.day });
     });
   });
 
@@ -200,7 +200,7 @@ export function compareTimetables(oldData: any, newData: any): string {
         const modifications: string[] = [];
         if (oldCls.teacher !== cls.teacher) {
           modifications.push(
-            `profesor iz <strong>${oldCls.teacher || 'N/A'}</strong> v <strong>${cls.teacher || 'N/A'}</strong>`,
+            `predavatelj iz <strong>${oldCls.teacher || 'N/A'}</strong> v <strong>${cls.teacher || 'N/A'}</strong>`,
           );
         }
         if (oldCls.classroom !== cls.classroom) {

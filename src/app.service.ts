@@ -5,7 +5,7 @@ import { TimetableParser } from './timetable/parseTimetable';
 import * as crypto from 'crypto';
 import { MailingService } from './mailing/mailing.service';
 import { PushService } from './push/push.service';
-import * as fs from 'fs';
+import { changesBox, renderMail, unsubscribeLink } from './mailing/layout';
 import {
   compareTimetables,
   compareTimetablesForProfessor,
@@ -203,13 +203,17 @@ export class AppService implements OnApplicationBootstrap {
                     classItem.id,
                   );
 
-                  if (/*emails.length > 0*/ false) {
-                    const emailTemplate = fs.readFileSync(
-                      'src/mailing/mails/change.html',
-                      'utf-8',
-                    );
-                    const subject = `Posodobljen urnik za ${classItem.name} - ${week.label}`;
+                  const subject = `Sprememba urnika: ${classItem.name} (teden ${week.label})`;
+                  const classMail = (link: string | null, extra = '') =>
+                    renderMail({
+                      title: `Sprememba urnika za ${classItem.name}`,
+                      content: `<p style="margin:0 0 16px 0;">Urnik za teden <strong>${week.label}</strong> se je spremenil:</p>${changesBox(changeDetailsHtml)}${extra}`,
+                      unsubscribeLink: link,
+                    });
 
+                  const sent = { class: 0, prof: 0, failed: 0 };
+
+                  {
                     for (const mail of emails) {
                       const userGroups =
                         JSON.parse(JSON.stringify(mail.groups)) || {};
@@ -249,17 +253,16 @@ export class AppService implements OnApplicationBootstrap {
                         continue;
                       }
 
-                      let finalHtml = emailTemplate
-                        .replace('{{change_details}}', changeDetailsHtml)
-                        .replace(
-                          '{{remove_mail}}',
-                          `${process.env.API_DOMAIN}/mailing/remove?email=${encodeURIComponent(mail.hash)}&classId=${classItem.id}`,
-                        );
-
                       await this.mailingService.sendEmail(
                         mail.email,
                         subject,
-                        finalHtml,
+                        classMail(unsubscribeLink(mail.hash)),
+                      ).then(
+                        () => sent.class++,
+                        (e) => {
+                          sent.failed++;
+                          this.logger.error(`Mail to ${mail.email} failed: ${e.message}`);
+                        },
                       );
                     }
                   }
@@ -313,11 +316,6 @@ export class AppService implements OnApplicationBootstrap {
                     if (oldCls.teacher) involvedProfessors.add(oldCls.teacher);
                   });
 
-                  const emailTemplate = fs.readFileSync(
-                    'src/mailing/mails/change.html',
-                    'utf-8',
-                  );
-
                   for (const profName of involvedProfessors) {
                     const profChangeDetailsHtml = compareTimetablesForProfessor(
                       oldTimetableData,
@@ -338,21 +336,23 @@ export class AppService implements OnApplicationBootstrap {
                         await this.mailingService.getEmailsByProfessor(
                           profRecord.id,
                         );
-                      const profSubject = `Posodobljen urnik za profesorja ${profName} - ${week.label}`;
+                      const profSubject = `Sprememba urnika: ${profName} (teden ${week.label})`;
 
                       for (const profMail of profEmails) {
-                        return;
-                        let profHtml = emailTemplate
-                          .replace('{{change_details}}', profChangeDetailsHtml)
-                          .replace(
-                            '{{remove_mail}}',
-                            `${process.env.API_DOMAIN}/mailing/remove?email=${encodeURIComponent(profMail.hash)}&professorId=${profRecord!.id}`,
-                          );
-
                         await this.mailingService.sendEmail(
                           profMail.email,
                           profSubject,
-                          profHtml,
+                          renderMail({
+                            title: `Sprememba urnika za ${profName}`,
+                            content: `<p style="margin:0 0 16px 0;">Urnik razreda <strong>${classItem.name}</strong> za teden <strong>${week.label}</strong> se je spremenil:</p>${changesBox(profChangeDetailsHtml)}`,
+                            unsubscribeLink: unsubscribeLink(profMail.hash),
+                          }),
+                        ).then(
+                          () => sent.prof++,
+                          (e) => {
+                            sent.failed++;
+                            this.logger.error(`Mail to ${profMail.email} failed: ${e.message}`);
+                          },
                         );
                       }
 
@@ -367,6 +367,13 @@ export class AppService implements OnApplicationBootstrap {
                         profPushChangeLines,
                       );
                     }
+                  }
+
+                  if (process.env.ADMIN_MAIL) {
+                    const summary = `<p style="margin:16px 0 0 0;font-size:14px;color:#BBBBBB;">Poslanih obvestil: <strong>${sent.class + sent.prof}</strong> (naročniki razreda: ${sent.class}, naročniki predavateljev: ${sent.prof})${sent.failed ? `, neuspešnih: <strong>${sent.failed}</strong>` : ''}.</p>`;
+                    await this.mailingService
+                      .sendEmail(process.env.ADMIN_MAIL, subject, classMail(null, summary))
+                      .catch((e) => this.logger.error(`Admin mail failed: ${e.message}`));
                   }
                 }
 

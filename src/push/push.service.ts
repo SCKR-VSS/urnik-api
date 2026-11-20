@@ -35,7 +35,7 @@ export class PushService {
         const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
 
         if (publicKey && privateKey) {
-            webpush.setVapidDetails(`mailto:nejc.zivic@vss.sckr.si`, publicKey, privateKey);
+            webpush.setVapidDetails(`mailto:${this.configService.get<string>("VAPID_MAILTO") ?? "nejc.zivic@vss.sckr.si"}`, publicKey, privateKey);
         } else {
             this.logger.warn(
                 'VAPID keys or VAPID_MAILTO are not configured. Push notifications will not work.',
@@ -96,27 +96,15 @@ export class PushService {
             const subjects = (sub.subjects as string[] | null) ?? [];
             const groups = (sub.groups as { name: string; group: number }[] | null) ?? [];
 
-            for (const line of changeLines) {
+            const relevant = changeLines.filter((line) => {
+                if (subjects.length === 0) return true;
                 const subjectCode = line.split(' ')[0];
+                if (!subjects.includes(subjectCode)) return false;
+                const groupPref = groups.find((g) => g.name === subjectCode);
+                return !groupPref || groupPref.group === 0;
+            });
 
-                const isRelevant =
-                    subjects.length === 0 ||
-                    (() => {
-                        const subjectMatch = subjects.includes(subjectCode);
-                        if (!subjectMatch) return false;
-                        if (groups.length === 0) return true;
-                        const groupPref = groups.find((g) => g.name === subjectCode);
-                        return !groupPref || groupPref.group === 0;
-                    })();
-
-                if (!isRelevant) continue;
-
-                await this.sendNotification(sub, {
-                    title: `Sprememba urnika - ${className}`,
-                    body: line,
-                    url: '/',
-                });
-            }
+            await this.sendNotification(sub, this.summarize(`Sprememba urnika · ${className}`, relevant));
         }
     }
 
@@ -129,21 +117,24 @@ export class PushService {
 
         const subs = await this.em.find(PushSubscription, { mode: 'professor', professorId });
 
+        const payload = this.summarize(`Sprememba urnika · ${professorName}`, changeLines);
         for (const sub of subs) {
-            for (const line of changeLines) {
-                await this.sendNotification(sub, {
-                    title: `Sprememba urnika – ${professorName}`,
-                    body: line,
-                    url: '/',
-                });
-            }
+            await this.sendNotification(sub, payload);
         }
+    }
+
+    private summarize(title: string, lines: string[]) {
+        const MAX = 4;
+        const extra = lines.length - MAX;
+        const body = lines.slice(0, MAX).join('\n') + (extra > 0 ? `\n…in še ${extra} sprememb` : '');
+        return { title, body, url: '/' };
     }
 
     private async sendNotification(
         sub: { endpoint: string; p256dh: string; auth: string; endpointHash: string },
         payload: { title: string; body: string; url: string },
     ): Promise<void> {
+        if (!payload.body) return;
         try {
             await webpush.sendNotification(
                 {
